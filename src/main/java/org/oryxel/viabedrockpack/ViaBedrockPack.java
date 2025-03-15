@@ -10,6 +10,6 @@ public class ViaBedrockPack implements ModInitializer {
 
 	@Override
 	public void onInitialize() {
-		LOGGER.info("Hello Via!");
+		LOGGER.info("Hello ViaBedrockPack!");
 	}
 }

@@ -5,7 +5,7 @@
 	"name": "ViaBedrockPack",
 	"description": "ViaBedrock extension mod that added support to certain things.",
 	"authors": ["Oryxel"],
-	"license": "GNU-3.0",
+	"license": "MIT",
 	"icon": "assets/viabedrockpack/icon.png",
 	"environment": "*",
 	"entrypoints": {
