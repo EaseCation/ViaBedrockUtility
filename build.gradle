@@ -28,7 +28,7 @@ dependencies {
 
 	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 
-	api("com.github.Oryxel:CubeConverter:4765f13686") {
+	api("com.github.Oryxel:CubeConverter:639d0546af") {
 		transitive = false
 	}
 
