@@ -30,7 +30,7 @@ public final class GeometryUtil {
                 }
             }
 
-            final float pivotX = bone.getPivot().getX(), pivotY = bone.getPivot().getY(), pivotZ = bone.getPivot().getZ();
+            final float pivotX = -bone.getPivot().getX(), pivotY = bone.getPivot().getY(), pivotZ = bone.getPivot().getZ();
 
             final List<ModelPart.Cuboid> cuboids = new ArrayList<>();
             for (final Cube cube : bone.getCubes().values()) {
@@ -38,7 +38,7 @@ public final class GeometryUtil {
                 final float sizeX = cube.getSize().getX(), sizeY = cube.getSize().getY(), sizeZ = cube.getSize().getZ();
                 final float inflate = cube.getInflate();
 
-                final UVMap uvMap = cube.getUvMap().clone().toJavaPerfaceUV(uvWidth, uvHeight);
+                final UVMap uvMap = cube.getUvMap().clone();
 
                 final Set<Direction> set = new HashSet<>();
                 for (final Direction direction : Direction.values()) {
@@ -47,12 +47,14 @@ public final class GeometryUtil {
                     }
                 }
 
-                float x = originX - pivotX, y = -(originY + sizeY) + pivotY, z = originZ - pivotZ;
+                // Y have to be flipped for whatever reason.
+                float x = originX - pivotX, y = -(originY + sizeY) - pivotY, z = originZ - pivotZ;
 
                 final ModelPart.Cuboid cuboid = new ModelPart.Cuboid(0, 0, x, y, z, sizeX, sizeY, sizeZ, inflate, inflate, inflate, cube.isMirror(), uvWidth, uvHeight, set);
 
                 final boolean mirror = cube.isMirror();
 
+                // TODO: Fix UV map.
                 float f = x + sizeX;
                 float g = y + sizeY;
                 float h = z + sizeZ;
@@ -75,32 +77,32 @@ public final class GeometryUtil {
                 int s = 0;
                 if (set.contains(Direction.DOWN)) {
                     final Float[] uv = uvMap.getMap().get(org.cube.converter.util.element.Direction.DOWN);
-                    sides[s++] = new ModelPart.Quad(new ModelPart.Vertex[]{vertex6, vertex5, vertex, vertex2}, uv[0], uv[1], uv[2], uv[3], uvWidth, uvHeight, mirror, Direction.DOWN);
+                    sides[s++] = new ModelPart.Quad(new ModelPart.Vertex[]{vertex6, vertex5, vertex, vertex2}, uv[0], uv[1], uv[0] + uv[2], uv[1] + uv[3], uvWidth, uvHeight, mirror, Direction.DOWN);
                 }
 
                 if (set.contains(Direction.UP)) {
                     final Float[] uv = uvMap.getMap().get(org.cube.converter.util.element.Direction.UP);
-                    sides[s++] = new ModelPart.Quad(new ModelPart.Vertex[]{vertex3, vertex4, vertex8, vertex7}, uv[0], uv[1], uv[2], uv[3], uvWidth, uvHeight, mirror, Direction.UP);
+                    sides[s++] = new ModelPart.Quad(new ModelPart.Vertex[]{vertex3, vertex4, vertex8, vertex7}, uv[0], uv[1], uv[0] + uv[2], uv[1] + uv[3], uvWidth, uvHeight, mirror, Direction.UP);
                 }
 
                 if (set.contains(Direction.WEST)) {
                     final Float[] uv = uvMap.getMap().get(org.cube.converter.util.element.Direction.WEST);
-                    sides[s++] = new ModelPart.Quad(new ModelPart.Vertex[]{vertex, vertex5, vertex8, vertex4}, uv[0], uv[1], uv[2], uv[3], uvWidth, uvHeight, mirror, Direction.WEST);
+                    sides[s++] = new ModelPart.Quad(new ModelPart.Vertex[]{vertex, vertex5, vertex8, vertex4}, uv[0], uv[1], uv[0] + uv[2], uv[1] + uv[3], uvWidth, uvHeight, mirror, Direction.WEST);
                 }
 
                 if (set.contains(Direction.NORTH)) {
                     final Float[] uv = uvMap.getMap().get(org.cube.converter.util.element.Direction.NORTH);
-                    sides[s++] = new ModelPart.Quad(new ModelPart.Vertex[]{vertex2, vertex, vertex4, vertex3}, uv[0], uv[1], uv[2], uv[3], uvWidth, uvHeight, mirror, Direction.NORTH);
+                    sides[s++] = new ModelPart.Quad(new ModelPart.Vertex[]{vertex2, vertex, vertex4, vertex3}, uv[0], uv[1], uv[0] + uv[2], uv[1] + uv[3], uvWidth, uvHeight, mirror, Direction.NORTH);
                 }
 
                 if (set.contains(Direction.EAST)) {
                     final Float[] uv = uvMap.getMap().get(org.cube.converter.util.element.Direction.EAST);
-                    sides[s++] = new ModelPart.Quad(new ModelPart.Vertex[]{vertex6, vertex2, vertex3, vertex7}, uv[0], uv[1], uv[2], uv[3], uvWidth, uvHeight, mirror, Direction.EAST);
+                    sides[s++] = new ModelPart.Quad(new ModelPart.Vertex[]{vertex6, vertex2, vertex3, vertex7}, uv[0], uv[1], uv[0] + uv[2], uv[1] + uv[3], uvWidth, uvHeight, mirror, Direction.EAST);
                 }
 
                 if (set.contains(Direction.SOUTH)) {
                     final Float[] uv = uvMap.getMap().get(org.cube.converter.util.element.Direction.SOUTH);
-                    sides[s] = new ModelPart.Quad(new ModelPart.Vertex[]{vertex5, vertex6, vertex7, vertex8}, uv[0], uv[1], uv[2], uv[3], uvWidth, uvHeight, mirror, Direction.SOUTH);
+                    sides[s] = new ModelPart.Quad(new ModelPart.Vertex[]{vertex5, vertex6, vertex7, vertex8}, uv[0], uv[1], uv[0] + uv[2], uv[1] + uv[3], uvWidth, uvHeight, mirror, Direction.SOUTH);
                 }
 
                 cuboids.add(cuboid);
@@ -109,14 +111,19 @@ public final class GeometryUtil {
             final Map<String, ModelPart> children = new HashMap<>();
             final ModelPart part = new ModelPart(cuboids, children);
 
-            part.setAngles(bone.getRotation().getX(), bone.getRotation().getY(), bone.getRotation().getZ());
+            System.out.println(bone.getRotation());
+            // part.setAngles(bone.getRotation().getX() * MathUtil.DEGREES_TO_RADIANS, bone.getRotation().getY() * MathUtil.DEGREES_TO_RADIANS, bone.getRotation().getZ() * MathUtil.DEGREES_TO_RADIANS);
+
+            System.out.println(bone.getPivot());
 
             if (parent != null) {
                 // This appears to be a difference between Bedrock and Java - pivots are carried over for us
-                part.setPivot(pivotX - parent.getPivot().getX(), pivotY - parent.getPivot().getY(), pivotZ - parent.getPivot().getZ());
+                part.setPivot(pivotX + parent.getPivot().getX(), pivotY - parent.getPivot().getY(), pivotZ - parent.getPivot().getZ());
             } else {
                 part.setPivot(pivotX, pivotY, pivotZ);
             }
+
+            part.setDefaultTransform(part.getTransform());
 
             stringToPart.put(bone.getName(), new PartInfo(bone.getParent(), part, children));
         }

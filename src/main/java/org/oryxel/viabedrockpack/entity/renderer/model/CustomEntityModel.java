@@ -8,4 +8,5 @@ public class CustomEntityModel extends EntityModel<EntityRenderState> {
     public CustomEntityModel(ModelPart root) {
         super(root);
     }
+
 }
