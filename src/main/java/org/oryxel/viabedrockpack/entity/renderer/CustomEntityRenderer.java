@@ -10,7 +10,7 @@ import org.oryxel.viabedrockpack.entity.CustomEntity;
 import org.oryxel.viabedrockpack.entity.renderer.model.CustomEntityModel;
 
 public class CustomEntityRenderer extends MobEntityRenderer<CustomEntity, LivingEntityRenderState, CustomEntityModel> {
-    private final Identifier texture;
+    private Identifier texture;
 
     public CustomEntityRenderer(EntityRendererFactory.Context context, CustomEntityModel entityModel, Identifier texture) {
         super(context, entityModel, 0);
@@ -41,5 +41,13 @@ public class CustomEntityRenderer extends MobEntityRenderer<CustomEntity, Living
     @Override
     public void updateRenderState(CustomEntity livingEntity, LivingEntityRenderState livingEntityRenderState, float f) {
         super.updateRenderState(livingEntity, livingEntityRenderState, f);
+
+        if (livingEntity.model != null) {
+            this.model = livingEntity.model;
+        }
+
+        if (livingEntity.texture != null) {
+            this.texture = livingEntity.texture;
+        }
     }
 }

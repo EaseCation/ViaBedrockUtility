@@ -25,8 +25,8 @@ public final class GeometryUtil {
             final Map<String, ModelPart> children = new HashMap<>();
             final ModelPart part = new ModelPart(List.of(), children);
 
-            part.setPivot(-bone.getPivot().getX(), -bone.getPivot().getY() + 24, bone.getPivot().getZ());
-            part.setAngles(-bone.getRotation().getX() * MathUtil.DEGREES_TO_RADIANS, -bone.getRotation().getY() * MathUtil.DEGREES_TO_RADIANS, bone.getRotation().getZ() * MathUtil.DEGREES_TO_RADIANS);
+            part.setPivot(bone.getPivot().getX(), -bone.getPivot().getY() + 24, bone.getPivot().getZ());
+            part.setAngles(bone.getRotation().getX() * MathUtil.DEGREES_TO_RADIANS, bone.getRotation().getY() * MathUtil.DEGREES_TO_RADIANS, bone.getRotation().getZ() * MathUtil.DEGREES_TO_RADIANS);
             // Seems to be important or else the pivot and rotation will be reset.
             part.setDefaultTransform(part.getTransform());
 
@@ -49,8 +49,8 @@ public final class GeometryUtil {
                 correctUv(cuboid, set, uvMap, uvWidth, uvHeight, cube.isMirror());
 
                 final ModelPart cubePart = new ModelPart(List.of(cuboid), Map.of(HARDCODED_INDICATOR, new ModelPart(List.of(), Map.of())));
-                cubePart.setPivot(-cube.getPivot().getX(), -cube.getPivot().getY() + 24, cube.getPivot().getZ());
-                cubePart.setAngles(-cube.getRotation().getX() * MathUtil.DEGREES_TO_RADIANS, -cube.getRotation().getY() * MathUtil.DEGREES_TO_RADIANS, cube.getRotation().getZ() * MathUtil.DEGREES_TO_RADIANS);
+                cubePart.setPivot(cube.getPivot().getX(), -cube.getPivot().getY() + 24, cube.getPivot().getZ());
+                cubePart.setAngles(cube.getRotation().getX() * MathUtil.DEGREES_TO_RADIANS, cube.getRotation().getY() * MathUtil.DEGREES_TO_RADIANS, cube.getRotation().getZ() * MathUtil.DEGREES_TO_RADIANS);
                 cubePart.setDefaultTransform(cubePart.getTransform());
                 children.put(cube.getParent() + cube.hashCode(), cubePart);
             }
@@ -101,6 +101,7 @@ public final class GeometryUtil {
 
         final ModelPart.Quad[] sides = cuboid.sides;
         int s = 0;
+
         if (set.contains(Direction.DOWN)) {
             final Float[] uv = map.getMap().get(org.cube.converter.util.element.Direction.DOWN);
             sides[s++] = new ModelPart.Quad(new ModelPart.Vertex[]{vertex6, vertex5, vertex, vertex2}, uv[0], uv[1], uv[2], uv[3], uvWidth, uvHeight, mirror, Direction.DOWN);

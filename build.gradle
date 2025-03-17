@@ -28,11 +28,12 @@ dependencies {
 
 	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 
-	api("com.github.Oryxel:CubeConverter:639d0546af") {
+	api("com.github.Oryxel:CubeConverter:8dff286c5a") {
 		transitive = false
 	}
 
-
+	api 'org.projectlombok:lombok:1.18.36'
+	annotationProcessor 'org.projectlombok:lombok:1.18.36'
 }
 
 processResources {
