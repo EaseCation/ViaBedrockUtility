@@ -1,7 +1,7 @@
 package org.oryxel.viabedrockutility;
 
-import net.fabricmc.api.ModInitializer;
-
+import lombok.Getter;
+import lombok.Setter;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
@@ -17,32 +17,34 @@ import net.minecraft.util.Identifier;
 import org.oryxel.viabedrockutility.entity.CustomEntity;
 import org.oryxel.viabedrockutility.entity.renderer.CustomEntityRenderer;
 import org.oryxel.viabedrockutility.entity.renderer.model.CustomEntityModel;
-import org.oryxel.viabedrockutility.payload.PayloadHandler;
+import org.oryxel.viabedrockutility.fabric.ViaBedrockUtilityFabric;
+import org.oryxel.viabedrockutility.pack.PackManager;
 import org.oryxel.viabedrockutility.payload.BasePayload;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.oryxel.viabedrockutility.payload.PayloadHandler;
 
 import java.util.List;
 import java.util.Map;
 
-public class ViaBedrockUtility implements ModInitializer {
-	public static final String MOD_ID = "viabedrockutility";
-	public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
+@Getter
+@Setter
+public class ViaBedrockUtility {
+    @Getter
+    private static final ViaBedrockUtility instance = new ViaBedrockUtility();
 
-	public static final Identifier CUSTOM_ENTITY_IDENTIFIER = Identifier.of(ViaBedrockUtility.MOD_ID, "custom-entity");
+    public static final Identifier CUSTOM_ENTITY_IDENTIFIER = Identifier.of(ViaBedrockUtilityFabric.MOD_ID, "custom-entity");
+    private ViaBedrockUtility() {}
 
-	@Override
-	public void onInitialize() {
-		LOGGER.info("Hello World!");
+    private PackManager packManager;
 
-		// Register custom entity.
-		final EntityType<CustomEntity> type = Registry.register(Registries.ENTITY_TYPE, CUSTOM_ENTITY_IDENTIFIER, EntityType.Builder.create(CustomEntity::new, SpawnGroup.MISC).dimensions(0, 0).build(RegistryKey.of(RegistryKeys.ENTITY_TYPE, CUSTOM_ENTITY_IDENTIFIER)));
-		EntityRendererRegistry.register(type, (context) -> new CustomEntityRenderer(context, new CustomEntityModel(new ModelPart(List.of(), Map.of())), Identifier.of("empty")));
-		FabricDefaultAttributeRegistry.register(type, CustomEntity.createMobAttributes());
+    public void init() {
+        // Register custom entity.
+        final EntityType<CustomEntity> type = Registry.register(Registries.ENTITY_TYPE, CUSTOM_ENTITY_IDENTIFIER, EntityType.Builder.create(CustomEntity::new, SpawnGroup.MISC).dimensions(0, 0).build(RegistryKey.of(RegistryKeys.ENTITY_TYPE, CUSTOM_ENTITY_IDENTIFIER)));
+        EntityRendererRegistry.register(type, (context) -> new CustomEntityRenderer(context, new CustomEntityModel(new ModelPart(List.of(), Map.of())), Identifier.of("empty")));
+        FabricDefaultAttributeRegistry.register(type, CustomEntity.createMobAttributes());
 
-		// Register custom payload.
-		final PayloadHandler handler = new PayloadHandler();
-		PayloadTypeRegistry.playS2C().register(BasePayload.ID, BasePayload.STREAM_CODEC);
-		ClientPlayNetworking.registerGlobalReceiver(BasePayload.ID, (payload, context) -> payload.handle(handler));
-	}
+        // Register custom payload.
+        final PayloadHandler handler = new PayloadHandler();
+        PayloadTypeRegistry.playS2C().register(BasePayload.ID, BasePayload.STREAM_CODEC);
+        ClientPlayNetworking.registerGlobalReceiver(BasePayload.ID, (payload, context) -> payload.handle(handler));
+    }
 }

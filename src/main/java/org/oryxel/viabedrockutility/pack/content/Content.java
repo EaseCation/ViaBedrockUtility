@@ -1,4 +1,4 @@
-package org.oryxel.viabedrockutility.pack;
+package org.oryxel.viabedrockutility.pack.content;
 
 import com.google.gson.JsonObject;
 import org.cube.converter.util.GsonUtil;

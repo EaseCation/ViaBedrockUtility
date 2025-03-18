@@ -5,12 +5,12 @@
 	"name": "ViaBedrockUtility",
 	"description": "ViaBedrock extension mod that added support to certain things.",
 	"authors": ["Oryxel"],
-	"license": "MIT",
+	"license": "GNU-3.0",
 	"icon": "assets/viabedrockutility/icon.png",
 	"environment": "*",
 	"entrypoints": {
 		"main": [
-			"org.oryxel.viabedrockutility.ViaBedrockUtility"
+			"org.oryxel.viabedrockutility.fabric.ViaBedrockUtilityFabric"
 		]
 	},
 	"mixins": [
