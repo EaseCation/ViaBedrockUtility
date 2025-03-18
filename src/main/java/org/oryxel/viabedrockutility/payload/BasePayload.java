@@ -9,6 +9,7 @@ import net.minecraft.util.Identifier;
 import org.oryxel.viabedrockutility.ViaBedrockUtility;
 import org.oryxel.viabedrockutility.fabric.ViaBedrockUtilityFabric;
 import org.oryxel.viabedrockutility.payload.enums.PayloadType;
+import org.oryxel.viabedrockutility.payload.impl.SpawnRequestPayload;
 
 import java.nio.charset.StandardCharsets;
 
@@ -32,7 +33,7 @@ public class BasePayload implements CustomPayload {
                 return new BasePayload(PayloadType.CONFIRM);
             }
             case SPAWN_REQUEST -> {
-                return null;
+                return new SpawnRequestPayload(PayloadType.SPAWN_REQUEST, BasePayload.readString(buf), BasePayload.readString(buf), buf.readVarInt(), buf.readUuid(), buf.readDouble(), buf.readDouble(), buf.readDouble(), buf.readByte(), buf.readByte(), buf.readByte());
             }
             default -> throw new IllegalStateException("Unexpected value: " + PayloadType.values()[type]);
         }
