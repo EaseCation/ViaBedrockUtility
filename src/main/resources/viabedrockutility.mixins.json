@@ -1,6 +1,6 @@
 {
   "required": true,
-  "package": "org.oryxel.viabedrockpack.mixin",
+  "package": "org.oryxel.viabedrockutility.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
   ],

@@ -1,20 +1,20 @@
 {
 	"schemaVersion": 1,
-	"id": "viabedrockpack",
+	"id": "viabedrockutility",
 	"version": "${version}",
-	"name": "ViaBedrockPack",
+	"name": "ViaBedrockUtility",
 	"description": "ViaBedrock extension mod that added support to certain things.",
 	"authors": ["Oryxel"],
 	"license": "MIT",
-	"icon": "assets/viabedrockpack/icon.png",
+	"icon": "assets/viabedrockutility/icon.png",
 	"environment": "*",
 	"entrypoints": {
 		"main": [
-			"org.oryxel.viabedrockpack.ViaBedrockPack"
+			"org.oryxel.viabedrockutility.ViaBedrockUtility"
 		]
 	},
 	"mixins": [
-		"viabedrockpack.mixins.json"
+		"viabedrockutility.mixins.json"
 	],
 	"depends": {
 		"fabricloader": ">=0.16.10",

@@ -1,10 +1,10 @@
-package org.oryxel.viabedrockpack.entity;
+package org.oryxel.viabedrockutility.entity;
 
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.mob.MobEntity;
 import net.minecraft.util.Identifier;
 import net.minecraft.world.World;
-import org.oryxel.viabedrockpack.entity.renderer.model.CustomEntityModel;
+import org.oryxel.viabedrockutility.entity.renderer.model.CustomEntityModel;
 
 public class CustomEntity extends MobEntity {
     public CustomEntityModel model;

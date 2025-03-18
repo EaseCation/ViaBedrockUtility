@@ -1,4 +1,4 @@
-package org.oryxel.viabedrockpack.util;
+package org.oryxel.viabedrockutility.util;
 
 import net.minecraft.client.model.ModelPart;
 import net.minecraft.util.math.Direction;
@@ -6,12 +6,12 @@ import org.cube.converter.model.element.Cube;
 import org.cube.converter.model.element.Parent;
 import org.cube.converter.model.impl.bedrock.BedrockGeometryModel;
 import org.cube.converter.util.element.UVMap;
-import org.oryxel.viabedrockpack.entity.renderer.model.CustomEntityModel;
+import org.oryxel.viabedrockutility.entity.renderer.model.CustomEntityModel;
 
 import java.util.*;
 
 public final class GeometryUtil {
-    public static String HARDCODED_INDICATOR = "viabedrockpack" + "viabedrockpack".hashCode();
+    public static String HARDCODED_INDICATOR = "viabedrockutility" + "viabedrockutility".hashCode();
 
     public static CustomEntityModel buildCustomModel(final BedrockGeometryModel geometry) {
         // There are some times when the skin image file is larger than the geometry UV points.

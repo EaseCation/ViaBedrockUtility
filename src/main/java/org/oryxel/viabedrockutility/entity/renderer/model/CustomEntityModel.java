@@ -1,4 +1,4 @@
-package org.oryxel.viabedrockpack.entity.renderer.model;
+package org.oryxel.viabedrockutility.entity.renderer.model;
 
 import net.minecraft.client.model.ModelPart;
 import net.minecraft.client.render.entity.model.EntityModel;

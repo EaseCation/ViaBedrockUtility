@@ -1,4 +1,4 @@
-package org.oryxel.viabedrockpack.entity.renderer;
+package org.oryxel.viabedrockutility.entity.renderer;
 
 import net.minecraft.client.render.Frustum;
 import net.minecraft.client.render.entity.EntityRendererFactory;
@@ -6,8 +6,8 @@ import net.minecraft.client.render.entity.MobEntityRenderer;
 import net.minecraft.client.render.entity.state.LivingEntityRenderState;
 import net.minecraft.entity.Entity;
 import net.minecraft.util.Identifier;
-import org.oryxel.viabedrockpack.entity.CustomEntity;
-import org.oryxel.viabedrockpack.entity.renderer.model.CustomEntityModel;
+import org.oryxel.viabedrockutility.entity.CustomEntity;
+import org.oryxel.viabedrockutility.entity.renderer.model.CustomEntityModel;
 
 public class CustomEntityRenderer extends MobEntityRenderer<CustomEntity, LivingEntityRenderState, CustomEntityModel> {
     private Identifier texture;
