@@ -13,6 +13,7 @@
     "render.ModelPartMixin",
     "render.feature.CapeFeatureRendererMixin",
     "render.dispatcher.EntityRenderDispatcherMixin",
-    "MinecraftClientMixin"
+    "MinecraftClientMixin",,
+    "accessor.PlayerSkinFieldAccessor"
   ]
 }

@@ -4,6 +4,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import lombok.Getter;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.network.PlayerListEntry;
 import net.minecraft.client.render.entity.EntityRendererFactory;
 import net.minecraft.client.render.entity.equipment.EquipmentModelLoader;
 import net.minecraft.client.render.entity.model.PlayerEntityModel;
@@ -18,15 +19,18 @@ import org.cube.converter.model.impl.bedrock.BedrockGeometryModel;
 import org.oryxel.viabedrockutility.ViaBedrockUtility;
 import org.oryxel.viabedrockutility.entity.CustomEntity;
 import org.oryxel.viabedrockutility.fabric.ViaBedrockUtilityFabric;
+import org.oryxel.viabedrockutility.mixin.accessor.PlayerSkinFieldAccessor;
 import org.oryxel.viabedrockutility.pack.PackManager;
 import org.oryxel.viabedrockutility.payload.impl.entity.SpawnRequestPayload;
 import org.oryxel.viabedrockutility.payload.impl.skin.BaseSkinPayload;
+import org.oryxel.viabedrockutility.payload.impl.skin.CapeDataPayload;
 import org.oryxel.viabedrockutility.payload.impl.skin.SkinDataPayload;
 import org.oryxel.viabedrockutility.renderer.CustomPlayerRenderer;
 import org.oryxel.viabedrockutility.util.GeometryUtil;
 
 import org.oryxel.viabedrockutility.renderer.model.CustomEntityModel;
 import org.oryxel.viabedrockutility.util.ImageUtil;
+import org.oryxel.viabedrockutility.util.PlayerSkinBuilder;
 
 import java.util.List;
 import java.util.Locale;
@@ -54,6 +58,8 @@ public class PayloadHandler {
             this.cachedSkinInfo.put(baseSkin.getPlayerUuid().toString(), new SkinInfo(baseSkin.getGeometry(), baseSkin.getResourcePatch(), baseSkin.getSkinWidth(), baseSkin.getSkinHeight(), baseSkin.getChunkCount()));
         } else if (payload instanceof SkinDataPayload skinData) {
             this.handle(skinData);
+        } else if (payload instanceof CapeDataPayload capePayload) {
+            this.handle(capePayload);
         }
     }
 
@@ -80,6 +86,32 @@ public class PayloadHandler {
 
         entity.model = (CustomEntityModel) GeometryUtil.buildModel(geometry, false);
         client.world.addEntity(entity);
+    }
+
+    public void handle(final CapeDataPayload payload) {
+        final NativeImage capeImage = ImageUtil.toNativeImage(payload.getCapeData(), payload.getWidth(), payload.getHeight());
+        if (capeImage == null) {
+            return;
+        }
+
+        final MinecraftClient client = MinecraftClient.getInstance();
+        client.getTextureManager().registerTexture(payload.getIdentifier(), new NativeImageBackedTexture(capeImage));
+
+        if (client.getNetworkHandler() == null) {
+            return;
+        }
+
+        // It's ok to use this here, the reason we don't use this for player geometry because there can be fake entity.
+        // But most fake entity don't have cape so we should be fine!
+        final PlayerListEntry entry = client.getNetworkHandler().getPlayerListEntry(payload.getPlayerUuid());
+        if (entry == null) {
+            return;
+        }
+
+        final PlayerSkinBuilder builder = new PlayerSkinBuilder(entry.getSkinTextures());
+        builder.capeTexture = payload.getIdentifier();
+
+        ((PlayerSkinFieldAccessor)entry).setPlayerSkin(builder::build);
     }
 
     public void handle(final SkinDataPayload payload) {
@@ -147,6 +179,21 @@ public class PayloadHandler {
         client.getTextureManager().registerTexture(identifier, new NativeImageBackedTexture(skinImage));
 
         this.cachedPlayerRenderers.put(payload.getPlayerUuid().toString(), new CustomPlayerRenderer(entityContext, model, identifier));
+
+        if (client.getNetworkHandler() == null) {
+            return;
+        }
+
+        // If we can still get player list entry then use this to set skin still a good idea!
+        final PlayerListEntry entry = client.getNetworkHandler().getPlayerListEntry(payload.getPlayerUuid());
+        if (entry == null) {
+            return;
+        }
+
+        final PlayerSkinBuilder builder = new PlayerSkinBuilder(entry.getSkinTextures());
+        builder.texture = identifier;
+
+        ((PlayerSkinFieldAccessor)entry).setPlayerSkin(builder::build);
     }
 
     @Getter
