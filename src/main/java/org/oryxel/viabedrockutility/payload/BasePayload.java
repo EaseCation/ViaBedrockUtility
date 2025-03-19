@@ -9,15 +9,14 @@ import net.minecraft.util.Identifier;
 import org.oryxel.viabedrockutility.ViaBedrockUtility;
 import org.oryxel.viabedrockutility.fabric.ViaBedrockUtilityFabric;
 import org.oryxel.viabedrockutility.payload.enums.PayloadType;
-import org.oryxel.viabedrockutility.payload.impl.SpawnRequestPayload;
+import org.oryxel.viabedrockutility.payload.impl.entity.*;
+import org.oryxel.viabedrockutility.payload.impl.skin.*;
 
 import java.nio.charset.StandardCharsets;
 
 @RequiredArgsConstructor
 @Getter
 public class BasePayload implements CustomPayload {
-    private final PayloadType type;
-
     public static Id<BasePayload> ID = new Id<>(Identifier.of(ViaBedrockUtilityFabric.MOD_ID, "data"));
 
     public static final PacketCodec<PacketByteBuf, BasePayload> STREAM_CODEC = PacketCodec.of(null, buf -> {
@@ -30,11 +29,27 @@ public class BasePayload implements CustomPayload {
             case CONFIRM -> {
                 // Confirm that ViaBedrock is present, this should be sent back right after we send confirm register channel.
                 ViaBedrockUtility.getInstance().setViaBedrockPresent(true);
-                return new BasePayload(PayloadType.CONFIRM);
+                return new BasePayload();
             }
             case SPAWN_REQUEST -> {
-                return new SpawnRequestPayload(PayloadType.SPAWN_REQUEST, BasePayload.readString(buf), BasePayload.readString(buf), buf.readVarInt(), buf.readUuid(), buf.readDouble(), buf.readDouble(), buf.readDouble(), buf.readByte(), buf.readByte(), buf.readByte());
+                return new SpawnRequestPayload(BasePayload.readString(buf), BasePayload.readString(buf), buf.readVarInt(), buf.readUuid(), buf.readDouble(), buf.readDouble(), buf.readDouble(), buf.readByte(), buf.readByte(), buf.readByte());
             }
+
+            case ANIMATE -> {
+                // TODO: Implement this.
+                return new BasePayload();
+            }
+
+            case CAPE -> {
+                return CapeDataPayload.STREAM_DECODER.decode(buf);
+            }
+            case SKIN_INFORMATION -> {
+                return BaseSkinPayload.STREAM_DECODER.decode(buf);
+            }
+            case SKIN_DATA -> {
+                return SkinDataPayload.STREAM_DECODER.decode(buf);
+            }
+
             default -> throw new IllegalStateException("Unexpected value: " + PayloadType.values()[type]);
         }
     });

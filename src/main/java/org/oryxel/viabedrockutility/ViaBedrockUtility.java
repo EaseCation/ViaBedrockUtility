@@ -15,8 +15,8 @@ import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.util.Identifier;
 import org.oryxel.viabedrockutility.entity.CustomEntity;
-import org.oryxel.viabedrockutility.entity.renderer.CustomEntityRenderer;
-import org.oryxel.viabedrockutility.entity.renderer.model.CustomEntityModel;
+import org.oryxel.viabedrockutility.renderer.CustomEntityRenderer;
+import org.oryxel.viabedrockutility.renderer.model.CustomEntityModel;
 import org.oryxel.viabedrockutility.fabric.ViaBedrockUtilityFabric;
 import org.oryxel.viabedrockutility.pack.PackManager;
 import org.oryxel.viabedrockutility.payload.BasePayload;
@@ -34,6 +34,7 @@ public class ViaBedrockUtility {
     public static final Identifier CUSTOM_ENTITY_IDENTIFIER = Identifier.of(ViaBedrockUtilityFabric.MOD_ID, "custom-entity");
     private ViaBedrockUtility() {}
 
+    private PayloadHandler payloadHandler;
     private PackManager packManager;
     private boolean viaBedrockPresent;
 
@@ -44,9 +45,9 @@ public class ViaBedrockUtility {
         FabricDefaultAttributeRegistry.register(type, CustomEntity.createMobAttributes());
 
         // Register custom payload.
-        final PayloadHandler handler = new PayloadHandler();
+        this.payloadHandler = new PayloadHandler();
         PayloadTypeRegistry.configurationS2C().register(BasePayload.ID, BasePayload.STREAM_CODEC);
         PayloadTypeRegistry.playS2C().register(BasePayload.ID, BasePayload.STREAM_CODEC);
-        ClientPlayNetworking.registerGlobalReceiver(BasePayload.ID, (payload, context) -> payload.handle(handler));
+        ClientPlayNetworking.registerGlobalReceiver(BasePayload.ID, (payload, context) -> payload.handle(this.payloadHandler));
     }
 }

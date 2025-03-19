@@ -1,19 +1,22 @@
 package org.oryxel.viabedrockutility.util;
 
-import net.minecraft.client.model.ModelPart;
+import com.google.common.collect.Maps;
+import net.minecraft.client.model.*;
+import net.minecraft.client.render.entity.model.BipedEntityModel;
+import net.minecraft.client.render.entity.model.PlayerEntityModel;
 import net.minecraft.util.math.Direction;
 import org.cube.converter.model.element.Cube;
 import org.cube.converter.model.element.Parent;
 import org.cube.converter.model.impl.bedrock.BedrockGeometryModel;
 import org.cube.converter.util.element.UVMap;
-import org.oryxel.viabedrockutility.entity.renderer.model.CustomEntityModel;
+import org.oryxel.viabedrockutility.renderer.model.CustomEntityModel;
 
 import java.util.*;
 
 public final class GeometryUtil {
     public static String HARDCODED_INDICATOR = "viabedrockutility" + "viabedrockutility".hashCode();
 
-    public static CustomEntityModel buildCustomModel(final BedrockGeometryModel geometry) {
+    public static Model buildModel(final BedrockGeometryModel geometry, final boolean player) {
         // There are some times when the skin image file is larger than the geometry UV points.
         // In this case, we need to scale UV calls
         // https://github.com/Camotoy/BedrockSkinUtility/issues/9
@@ -22,7 +25,7 @@ public final class GeometryUtil {
 
         final Map<String, PartInfo> stringToPart = new HashMap<>();
         for (final Parent bone : geometry.getParents()) {
-            final Map<String, ModelPart> children = new HashMap<>();
+            final Map<String, ModelPart> children = Maps.newHashMap();
             final ModelPart part = new ModelPart(List.of(), children);
 
             part.setPivot(bone.getPivot().getX(), -bone.getPivot().getY() + 24, bone.getPivot().getZ());
@@ -55,16 +58,31 @@ public final class GeometryUtil {
                 children.put(cube.getParent() + cube.hashCode(), cubePart);
             }
 
-            stringToPart.put(bone.getName(), new PartInfo(bone.getParent(), part, children));
+            String parent = bone.getParent();
+            String name = bone.getName();
+            if (player) {
+                switch (name.toLowerCase(Locale.ROOT)) { // Also do this with the overlays? Those are final, though.
+                    case "head", "hat", "rightarm", "body", "leftarm", "leftleg", "rightleg" -> parent = "root";
+                }
+            }
+
+            stringToPart.put(adjustFormatting(name), new PartInfo(adjustFormatting(parent), part, children));
         }
 
-        final Map<String, ModelPart> rootParts = new HashMap<>();
+        PartInfo root = stringToPart.get("root");
+        if (root == null) {
+            final Map<String, ModelPart> rootParts = Maps.newHashMap();
+            stringToPart.put("root", root = new PartInfo("", new ModelPart(List.of(), rootParts), rootParts));
+        } else if (!player) {
+            final Map<String, ModelPart> rootParts = Maps.newHashMap();
+            root = new PartInfo("", new ModelPart(List.of(), rootParts), rootParts);
+        }
 
         for (Map.Entry<String, PartInfo> entry : stringToPart.entrySet()) {
             entry.getValue().children.put(HARDCODED_INDICATOR, new ModelPart(List.of(), Map.of()));
 
-            if (entry.getValue().parent.isBlank()) {
-                rootParts.put(entry.getKey(), entry.getValue().part());
+            if (entry.getValue().parent.isBlank() && entry.getValue().part() != root.part) {
+                root.children.put(entry.getKey(), entry.getValue().part());
                 continue;
             }
 
@@ -74,7 +92,52 @@ public final class GeometryUtil {
             }
         }
 
-        return new CustomEntityModel(new ModelPart(List.of(), rootParts));
+        if (player) {
+            root.children.computeIfAbsent("cloak", (string) -> // Required to allow a cape to render
+                    BipedEntityModel.getModelData(Dilation.NONE, 0.0F).getRoot().addChild(string,
+                            ModelPartBuilder.create()
+                                    .uv(0, 0)
+                                    .cuboid(-5.0F, 0.0F, -1.0F, 10.0F, 16.0F, 1.0F, Dilation.NONE, 1.0F, 0.5F),
+                            ModelTransform.pivot(0.0F, 0.0F, 0.0F)).createPart(64, 64));
+            ensureAvailable(stringToPart, root.children, "head");
+            ensureAvailable(stringToPart, root.children, "body");
+            ensureAvailable(stringToPart, root.children, "left_arm");
+            ensureAvailable(stringToPart, root.children, "right_arm");
+            ensureAvailable(stringToPart, root.children, "left_leg");
+            ensureAvailable(stringToPart, root.children, "right_leg");
+
+            ensureAvailable(stringToPart, stringToPart.get("head").children, "hat");
+
+            ensureAvailable(stringToPart, stringToPart.get("left_arm").children, "left_sleeve");
+            ensureAvailable(stringToPart, stringToPart.get("right_arm").children, "right_sleeve");
+            ensureAvailable(stringToPart, stringToPart.get("left_leg").children, "left_pants");
+            ensureAvailable(stringToPart, stringToPart.get("right_leg").children, "right_pants");
+
+            ensureAvailable(stringToPart, stringToPart.get("body").children, "jacket");
+        }
+
+        return player ? new PlayerEntityModel(root.part(), false) : new CustomEntityModel(root.part());
+    }
+
+    private static String adjustFormatting(String name) {
+        if (name == null) {
+            return null;
+        }
+
+        return switch (name.toLowerCase(Locale.ROOT)) {
+            case "leftarm" -> "left_arm";
+            case "rightarm" -> "right_arm";
+            case "leftleg" -> "left_leg";
+            case "rightleg" -> "right_leg";
+            default -> name.toLowerCase(Locale.ROOT);
+        };
+    }
+
+    private static void ensureAvailable(Map<String, PartInfo> stringToPart, Map<String, ModelPart> children, String name) {
+        final Map<String, ModelPart> children1 = Maps.newHashMap();
+        final ModelPart part = new ModelPart(Collections.emptyList(), children1);
+        stringToPart.putIfAbsent(name, new PartInfo("", part, children1));
+        children.putIfAbsent(name, part);
     }
 
     private record PartInfo(String parent, ModelPart part, Map<String, ModelPart> children) {

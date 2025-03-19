@@ -1,4 +1,4 @@
-package org.oryxel.viabedrockutility.entity.renderer;
+package org.oryxel.viabedrockutility.renderer;
 
 import net.minecraft.client.render.Frustum;
 import net.minecraft.client.render.RenderLayer;
@@ -10,7 +10,7 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.MathHelper;
 import org.jetbrains.annotations.Nullable;
 import org.oryxel.viabedrockutility.entity.CustomEntity;
-import org.oryxel.viabedrockutility.entity.renderer.model.CustomEntityModel;
+import org.oryxel.viabedrockutility.renderer.model.CustomEntityModel;
 
 public class CustomEntityRenderer extends MobEntityRenderer<CustomEntity, LivingEntityRenderState, CustomEntityModel> {
     private Identifier texture;

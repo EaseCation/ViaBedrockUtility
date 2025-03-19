@@ -1,11 +1,10 @@
-package org.oryxel.viabedrockutility.payload.impl;
+package org.oryxel.viabedrockutility.payload.impl.entity;
 
 import lombok.Getter;
 import net.minecraft.entity.EntityType;
 import net.minecraft.registry.Registries;
 import org.oryxel.viabedrockutility.ViaBedrockUtility;
 import org.oryxel.viabedrockutility.payload.BasePayload;
-import org.oryxel.viabedrockutility.payload.enums.PayloadType;
 
 import java.util.UUID;
 
@@ -18,8 +17,7 @@ public class SpawnRequestPayload extends BasePayload {
     private final double x, y, z;
     private final byte pitch, yaw, headYaw;
 
-    public SpawnRequestPayload(final PayloadType type, final String geometry, final String texture, final int entityId, final UUID uuid, final double x, final double y, final double z, final byte pitch, final byte yaw, final byte headYaw) {
-        super(type);
+    public SpawnRequestPayload(final String geometry, final String texture, final int entityId, final UUID uuid, final double x, final double y, final double z, final byte pitch, final byte yaw, final byte headYaw) {
         this.entityType = Registries.ENTITY_TYPE.get(ViaBedrockUtility.CUSTOM_ENTITY_IDENTIFIER);
         this.geometry = geometry;
         this.texture = texture;

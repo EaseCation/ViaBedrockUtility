@@ -1,6 +1,14 @@
 package org.oryxel.viabedrockutility.payload;
 
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import lombok.Getter;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.render.entity.EntityRendererFactory;
+import net.minecraft.client.render.entity.equipment.EquipmentModelLoader;
+import net.minecraft.client.render.entity.model.PlayerEntityModel;
+import net.minecraft.client.texture.NativeImage;
+import net.minecraft.client.texture.NativeImageBackedTexture;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.SpawnReason;
 import net.minecraft.network.packet.s2c.play.EntitySpawnS2CPacket;
@@ -11,12 +19,23 @@ import org.oryxel.viabedrockutility.ViaBedrockUtility;
 import org.oryxel.viabedrockutility.entity.CustomEntity;
 import org.oryxel.viabedrockutility.fabric.ViaBedrockUtilityFabric;
 import org.oryxel.viabedrockutility.pack.PackManager;
-import org.oryxel.viabedrockutility.payload.impl.SpawnRequestPayload;
+import org.oryxel.viabedrockutility.payload.impl.entity.SpawnRequestPayload;
+import org.oryxel.viabedrockutility.payload.impl.skin.BaseSkinPayload;
+import org.oryxel.viabedrockutility.payload.impl.skin.SkinDataPayload;
+import org.oryxel.viabedrockutility.renderer.CustomPlayerRenderer;
 import org.oryxel.viabedrockutility.util.GeometryUtil;
 
+import org.oryxel.viabedrockutility.renderer.model.CustomEntityModel;
+import org.oryxel.viabedrockutility.util.ImageUtil;
+
 import java.util.Locale;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class PayloadHandler {
+    @Getter
+    private final Map<String, CustomPlayerRenderer> cachedPlayerRenderers = new ConcurrentHashMap<>();
+    private final Map<String, SkinInfo> cachedSkinInfo = new ConcurrentHashMap<>();
     private PackManager packManager;
 
     public void handle(final BasePayload payload) {
@@ -30,6 +49,10 @@ public class PayloadHandler {
 
         if (payload instanceof SpawnRequestPayload spawnRequest) {
             this.handle(spawnRequest);
+        } else if (payload instanceof BaseSkinPayload baseSkin) {
+            this.cachedSkinInfo.put(baseSkin.getPlayerUuid().toString(), new SkinInfo(baseSkin.getGeometry(), baseSkin.getSkinWidth(), baseSkin.getSkinHeight(), baseSkin.getChunkCount()));
+        } else if (payload instanceof SkinDataPayload skinData) {
+            this.handle(skinData);
         }
     }
 
@@ -54,8 +77,103 @@ public class PayloadHandler {
             return;
         }
 
-        entity.model = GeometryUtil.buildCustomModel(geometry);
+        entity.model = (CustomEntityModel) GeometryUtil.buildModel(geometry, false);
         client.world.addEntity(entity);
     }
 
+    public void handle(final SkinDataPayload payload) {
+        final SkinInfo info = this.cachedSkinInfo.get(payload.getPlayerUuid().toString());
+        if (info == null) {
+            ViaBedrockUtilityFabric.LOGGER.error("Skin info was null!");
+            return;
+        }
+
+        info.setData(payload.getSkinData(), payload.getChunkPosition());
+        ViaBedrockUtilityFabric.LOGGER.info("Skin chunk {} received for {}", payload.getChunkPosition(), payload.getPlayerUuid());
+
+        if (info.isComplete()) {
+            // All skin data has been received
+            this.cachedSkinInfo.remove(payload.getPlayerUuid().toString());
+        } else {
+            return;
+        }
+
+        final NativeImage skinImage = ImageUtil.toNativeImage(info.getData(), info.getWidth(), info.getHeight());
+        if (skinImage == null) {
+            return;
+        }
+
+        if (info.getGeometryRaw().isEmpty()) {
+            return;
+        }
+
+        final BedrockGeometryModel geometry;
+        try {
+            final JsonObject object = JsonParser.parseString(info.getGeometryRaw()).getAsJsonObject();
+            geometry = BedrockGeometryModel.fromJson(object).getFirst();
+        } catch (final Exception ignored) {
+            return;
+        }
+
+        final MinecraftClient client = MinecraftClient.getInstance();
+        final EntityRendererFactory.Context entityContext = new EntityRendererFactory.Context(client.getEntityRenderDispatcher(),
+                client.getItemModelManager(), client.getMapRenderer(), client.getBlockRenderManager(),
+                client.getResourceManager(), client.getLoadedEntityModels(), new EquipmentModelLoader(), client.textRenderer);
+
+        // Convert Bedrock JSON geometry into a class format that Java understands
+        final PlayerEntityModel model = (PlayerEntityModel) GeometryUtil.buildModel(geometry, true);
+        final Identifier identifier = Identifier.of(ViaBedrockUtilityFabric.MOD_ID, payload.getPlayerUuid().toString());
+        client.getTextureManager().registerTexture(identifier, new NativeImageBackedTexture(skinImage));
+
+        this.cachedPlayerRenderers.put(payload.getPlayerUuid().toString(), new CustomPlayerRenderer(entityContext, model, identifier));
+    }
+
+    @Getter
+    public static class SkinInfo {
+        private final String geometryRaw;
+        private final int width, height;
+        private final byte[][] skinData;
+
+        public SkinInfo(String geometryRaw, int width, int height, int chunkCount) {
+            this.geometryRaw = geometryRaw;
+            this.skinData = new byte[chunkCount][];
+            this.width = width;
+            this.height = height;
+        }
+        /**
+         * Should the skin data be sent to us through multiple plugin messages, assemble it.
+         */
+        public byte[] getData() {
+            if (skinData.length == 1) {
+                // No concatenation needed
+                return skinData[0];
+            }
+
+            int totalLength = 0;
+            for (byte[] data : skinData) {
+                totalLength += data.length;
+            }
+            byte[] totalData = new byte[totalLength];
+            int currentIndex = 0;
+            for (byte[] currentData : skinData) {
+                // Copy all arrays to one array
+                System.arraycopy(currentData, 0, totalData, currentIndex, currentData.length);
+                currentIndex += currentData.length;
+            }
+            return totalData;
+        }
+
+        public void setData(byte[] data, int chunk) {
+            this.skinData[chunk] = data;
+        }
+
+        public boolean isComplete() {
+            for (byte[] data : skinData) {
+                if (data == null) {
+                    return false;
+                }
+            }
+            return true;
+        }
+    }
 }

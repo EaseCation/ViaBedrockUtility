@@ -1,4 +1,4 @@
-package org.oryxel.viabedrockutility.entity.renderer.model;
+package org.oryxel.viabedrockutility.renderer.model;
 
 import net.minecraft.client.model.ModelPart;
 import net.minecraft.client.render.entity.model.EntityModel;
@@ -8,5 +8,4 @@ public class CustomEntityModel extends EntityModel<EntityRenderState> {
     public CustomEntityModel(ModelPart root) {
         super(root);
     }
-
 }

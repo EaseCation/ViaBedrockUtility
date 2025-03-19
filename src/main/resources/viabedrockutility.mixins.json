@@ -10,6 +10,8 @@
   "client": [
     "network.ClientLoginNetworkHandlerMixin",
     "pack.ServerResourcePackLoaderMixin",
-    "render.ModelPartMixin"
+    "render.ModelPartMixin",
+    "render.feature.CapeFeatureRendererMixin",
+    "render.dispatcher.EntityRenderDispatcherMixin"
   ]
 }
