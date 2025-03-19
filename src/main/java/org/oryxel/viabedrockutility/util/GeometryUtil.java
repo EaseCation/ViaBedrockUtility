@@ -62,7 +62,7 @@ public final class GeometryUtil {
             String name = bone.getName();
             if (player) {
                 switch (name.toLowerCase(Locale.ROOT)) { // Also do this with the overlays? Those are final, though.
-                    case "head", "hat", "rightarm", "body", "leftarm", "leftleg", "rightleg" -> parent = "root";
+                    case "head", "rightarm", "body", "leftarm", "leftleg", "rightleg" -> parent = "root";
                 }
             }
 

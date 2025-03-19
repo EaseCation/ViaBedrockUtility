@@ -136,6 +136,23 @@ public class PayloadHandler {
             return;
         }
 
+        final MinecraftClient client = MinecraftClient.getInstance();
+
+        final Identifier identifier = Identifier.of(ViaBedrockUtilityFabric.MOD_ID, payload.getPlayerUuid().toString());
+        client.getTextureManager().registerTexture(identifier, new NativeImageBackedTexture(skinImage));
+
+        if (client.getNetworkHandler() != null) {
+            final PlayerListEntry entry = client.getNetworkHandler().getPlayerListEntry(payload.getPlayerUuid());
+
+            // If we can still get player list entry then use this to set skin still a good idea!
+            if (entry != null) {
+                final PlayerSkinBuilder builder = new PlayerSkinBuilder(entry.getSkinTextures());
+                builder.texture = identifier;
+
+                ((PlayerSkinFieldAccessor)entry).setPlayerSkin(builder::build);
+            }
+        }
+
         if (info.getGeometryRaw().isEmpty()) {
             return;
         }
@@ -152,7 +169,6 @@ public class PayloadHandler {
             return;
         }
 
-        final MinecraftClient client = MinecraftClient.getInstance();
         final EntityRendererFactory.Context entityContext = new EntityRendererFactory.Context(client.getEntityRenderDispatcher(),
                 client.getItemModelManager(), client.getMapRenderer(), client.getBlockRenderManager(),
                 client.getResourceManager(), client.getLoadedEntityModels(), new EquipmentModelLoader(), client.textRenderer);
@@ -167,33 +183,17 @@ public class PayloadHandler {
         BedrockGeometryModel geometry = geometries.getFirst();
         if (requiredGeometry != null) {
             for (final BedrockGeometryModel geometryModel : geometries) {
-                if (requiredGeometry.equals(geometry.getIdentifier())) {
+                if (geometryModel.getIdentifier().equals(requiredGeometry)) {
                     geometry = geometryModel;
+                    break;
                 }
             }
         }
 
         // Convert Bedrock JSON geometry into a class format that Java understands
         final PlayerEntityModel model = (PlayerEntityModel) GeometryUtil.buildModel(geometry, true);
-        final Identifier identifier = Identifier.of(ViaBedrockUtilityFabric.MOD_ID, payload.getPlayerUuid().toString());
-        client.getTextureManager().registerTexture(identifier, new NativeImageBackedTexture(skinImage));
 
         this.cachedPlayerRenderers.put(payload.getPlayerUuid().toString(), new CustomPlayerRenderer(entityContext, model, identifier));
-
-        if (client.getNetworkHandler() == null) {
-            return;
-        }
-
-        // If we can still get player list entry then use this to set skin still a good idea!
-        final PlayerListEntry entry = client.getNetworkHandler().getPlayerListEntry(payload.getPlayerUuid());
-        if (entry == null) {
-            return;
-        }
-
-        final PlayerSkinBuilder builder = new PlayerSkinBuilder(entry.getSkinTextures());
-        builder.texture = identifier;
-
-        ((PlayerSkinFieldAccessor)entry).setPlayerSkin(builder::build);
     }
 
     @Getter
