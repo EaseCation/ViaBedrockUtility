@@ -16,17 +16,19 @@ public final class BaseSkinPayload extends BasePayload {
 
         int skinWidth = buf.readInt(), skinHeight = buf.readInt();
 
-        String geometry = "";
+        String geometry = "", resourcePatch = "";
         if (buf.readBoolean()) {
             geometry = BasePayload.readString(buf);
+            resourcePatch = BasePayload.readString(buf);
         }
 
-        return new BaseSkinPayload(playerUuid, skinWidth, skinHeight, geometry, buf.readInt());
+        return new BaseSkinPayload(playerUuid, skinWidth, skinHeight, geometry, resourcePatch, buf.readInt());
     };
 
     private final UUID playerUuid;
     private final int skinWidth;
     private final int skinHeight;
     private final String geometry;
+    private final String resourcePatch;
     private final int chunkCount;
 }

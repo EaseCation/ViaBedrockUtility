@@ -28,6 +28,7 @@ import org.oryxel.viabedrockutility.util.GeometryUtil;
 import org.oryxel.viabedrockutility.renderer.model.CustomEntityModel;
 import org.oryxel.viabedrockutility.util.ImageUtil;
 
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -50,7 +51,7 @@ public class PayloadHandler {
         if (payload instanceof SpawnRequestPayload spawnRequest) {
             this.handle(spawnRequest);
         } else if (payload instanceof BaseSkinPayload baseSkin) {
-            this.cachedSkinInfo.put(baseSkin.getPlayerUuid().toString(), new SkinInfo(baseSkin.getGeometry(), baseSkin.getSkinWidth(), baseSkin.getSkinHeight(), baseSkin.getChunkCount()));
+            this.cachedSkinInfo.put(baseSkin.getPlayerUuid().toString(), new SkinInfo(baseSkin.getGeometry(), baseSkin.getResourcePatch(), baseSkin.getSkinWidth(), baseSkin.getSkinHeight(), baseSkin.getChunkCount()));
         } else if (payload instanceof SkinDataPayload skinData) {
             this.handle(skinData);
         }
@@ -107,11 +108,15 @@ public class PayloadHandler {
             return;
         }
 
-        final BedrockGeometryModel geometry;
+        final List<BedrockGeometryModel> geometries;
         try {
             final JsonObject object = JsonParser.parseString(info.getGeometryRaw()).getAsJsonObject();
-            geometry = BedrockGeometryModel.fromJson(object).getFirst();
+            geometries = BedrockGeometryModel.fromJson(object);
         } catch (final Exception ignored) {
+            return;
+        }
+
+        if (geometries.isEmpty()) {
             return;
         }
 
@@ -119,6 +124,22 @@ public class PayloadHandler {
         final EntityRendererFactory.Context entityContext = new EntityRendererFactory.Context(client.getEntityRenderDispatcher(),
                 client.getItemModelManager(), client.getMapRenderer(), client.getBlockRenderManager(),
                 client.getResourceManager(), client.getLoadedEntityModels(), new EquipmentModelLoader(), client.textRenderer);
+
+        // Ex: skinResourcePatch={"geometry":{"default":"geometry.humanoid.custom.1742391406.1704"}}
+        String requiredGeometry = null;
+        try {
+            requiredGeometry = JsonParser.parseString(info.getResourcePatch()).getAsJsonObject()
+                    .getAsJsonObject("geometry").get("default").getAsString();
+        } catch (Exception ignored) {}
+
+        BedrockGeometryModel geometry = geometries.getFirst();
+        if (requiredGeometry != null) {
+            for (final BedrockGeometryModel geometryModel : geometries) {
+                if (requiredGeometry.equals(geometry.getIdentifier())) {
+                    geometry = geometryModel;
+                }
+            }
+        }
 
         // Convert Bedrock JSON geometry into a class format that Java understands
         final PlayerEntityModel model = (PlayerEntityModel) GeometryUtil.buildModel(geometry, true);
@@ -130,12 +151,13 @@ public class PayloadHandler {
 
     @Getter
     public static class SkinInfo {
-        private final String geometryRaw;
+        private final String geometryRaw, resourcePatch;
         private final int width, height;
         private final byte[][] skinData;
 
-        public SkinInfo(String geometryRaw, int width, int height, int chunkCount) {
+        public SkinInfo(String geometryRaw, String resourcePatch, int width, int height, int chunkCount) {
             this.geometryRaw = geometryRaw;
+            this.resourcePatch = resourcePatch;
             this.skinData = new byte[chunkCount][];
             this.width = width;
             this.height = height;
