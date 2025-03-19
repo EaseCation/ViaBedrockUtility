@@ -93,12 +93,14 @@ public final class GeometryUtil {
         }
 
         if (player) {
-            root.children.computeIfAbsent("cloak", (string) -> // Required to allow a cape to render
-                    BipedEntityModel.getModelData(Dilation.NONE, 0.0F).getRoot().addChild(string,
-                            ModelPartBuilder.create()
-                                    .uv(0, 0)
-                                    .cuboid(-5.0F, 0.0F, -1.0F, 10.0F, 16.0F, 1.0F, Dilation.NONE, 1.0F, 0.5F),
-                            ModelTransform.pivot(0.0F, 0.0F, 0.0F)).createPart(64, 64));
+            // Not really sure if this still belongs to the player model.
+//            root.children.computeIfAbsent("cloak", (string) -> // Required to allow a cape to render
+//                    BipedEntityModel.getModelData(Dilation.NONE, 0.0F).getRoot().addChild(string,
+//                            ModelPartBuilder.create()
+//                                    .uv(0, 0)
+//                                    .cuboid(-5.0F, 0.0F, -1.0F, 10.0F, 16.0F, 1.0F, Dilation.NONE, 1.0F, 0.5F),
+//                            ModelTransform.pivot(0.0F, 0.0F, 0.0F)).createPart(64, 64));
+
             ensureAvailable(stringToPart, root.children, "head");
             ensureAvailable(stringToPart, root.children, "body");
             ensureAvailable(stringToPart, root.children, "left_arm");
