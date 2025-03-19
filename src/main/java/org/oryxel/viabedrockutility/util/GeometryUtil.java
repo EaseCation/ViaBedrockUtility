@@ -2,7 +2,6 @@ package org.oryxel.viabedrockutility.util;
 
 import com.google.common.collect.Maps;
 import net.minecraft.client.model.*;
-import net.minecraft.client.render.entity.model.BipedEntityModel;
 import net.minecraft.client.render.entity.model.PlayerEntityModel;
 import net.minecraft.util.math.Direction;
 import org.cube.converter.model.element.Cube;
@@ -16,7 +15,7 @@ import java.util.*;
 public final class GeometryUtil {
     public static String HARDCODED_INDICATOR = "viabedrockutility" + "viabedrockutility".hashCode();
 
-    public static Model buildModel(final BedrockGeometryModel geometry, final boolean player) {
+    public static Model buildModel(final BedrockGeometryModel geometry, final boolean player, boolean slim) {
         // There are some times when the skin image file is larger than the geometry UV points.
         // In this case, we need to scale UV calls
         // https://github.com/Camotoy/BedrockSkinUtility/issues/9
@@ -118,7 +117,7 @@ public final class GeometryUtil {
             ensureAvailable(stringToPart, stringToPart.get("body").children, "jacket");
         }
 
-        return player ? new PlayerEntityModel(root.part(), false) : new CustomEntityModel(root.part());
+        return player ? new PlayerEntityModel(root.part(), slim) : new CustomEntityModel(root.part());
     }
 
     private static String adjustFormatting(String name) {

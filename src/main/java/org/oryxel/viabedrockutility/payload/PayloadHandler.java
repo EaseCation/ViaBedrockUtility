@@ -10,6 +10,7 @@ import net.minecraft.client.render.entity.equipment.EquipmentModelLoader;
 import net.minecraft.client.render.entity.model.PlayerEntityModel;
 import net.minecraft.client.texture.NativeImage;
 import net.minecraft.client.texture.NativeImageBackedTexture;
+import net.minecraft.client.util.SkinTextures;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.SpawnReason;
 import net.minecraft.network.packet.s2c.play.EntitySpawnS2CPacket;
@@ -84,7 +85,7 @@ public class PayloadHandler {
             return;
         }
 
-        entity.model = (CustomEntityModel) GeometryUtil.buildModel(geometry, false);
+        entity.model = (CustomEntityModel) GeometryUtil.buildModel(geometry, false, false);
         client.world.addEntity(entity);
     }
 
@@ -185,15 +186,34 @@ public class PayloadHandler {
             for (final BedrockGeometryModel geometryModel : geometries) {
                 if (geometryModel.getIdentifier().equals(requiredGeometry)) {
                     geometry = geometryModel;
+                    requiredGeometry = geometryModel.getIdentifier();
                     break;
                 }
             }
         }
 
-        // Convert Bedrock JSON geometry into a class format that Java understands
-        final PlayerEntityModel model = (PlayerEntityModel) GeometryUtil.buildModel(geometry, true);
+        // Hardcoded I know...
+        // TODO: Figure this out based off the model, not the identifier.
+        boolean slim = requiredGeometry != null && (requiredGeometry.contains("humanoid.customSlim") || requiredGeometry.contains("humanoid.slim"));
 
-        this.cachedPlayerRenderers.put(payload.getPlayerUuid().toString(), new CustomPlayerRenderer(entityContext, model, identifier));
+        // Convert Bedrock JSON geometry into a class format that Java understands
+        final PlayerEntityModel model = (PlayerEntityModel) GeometryUtil.buildModel(geometry, true, slim);
+        this.cachedPlayerRenderers.put(payload.getPlayerUuid().toString(), new CustomPlayerRenderer(entityContext, model, slim, identifier));
+
+        if (client.getNetworkHandler() == null) {
+            return;
+        }
+
+        final PlayerListEntry entry = client.getNetworkHandler().getPlayerListEntry(payload.getPlayerUuid());
+
+        // Do this once again for emmmm the slim or wide model.
+        if (entry != null) {
+            final PlayerSkinBuilder builder = new PlayerSkinBuilder(entry.getSkinTextures());
+            builder.texture = identifier;
+            builder.model = slim ? SkinTextures.Model.SLIM : SkinTextures.Model.WIDE;
+
+            ((PlayerSkinFieldAccessor)entry).setPlayerSkin(builder::build);
+        }
     }
 
     @Getter

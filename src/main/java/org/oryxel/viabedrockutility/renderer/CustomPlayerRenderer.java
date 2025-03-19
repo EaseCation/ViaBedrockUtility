@@ -9,8 +9,8 @@ import net.minecraft.util.Identifier;
 public class CustomPlayerRenderer extends PlayerEntityRenderer {
     private final Identifier texture;
 
-    public CustomPlayerRenderer(final EntityRendererFactory.Context ctx, final PlayerEntityModel model, Identifier texture) {
-        super(ctx, false);
+    public CustomPlayerRenderer(final EntityRendererFactory.Context ctx, final PlayerEntityModel model, final boolean slim, Identifier texture) {
+        super(ctx, slim);
 
         if (model != null) {
             this.model = model;
