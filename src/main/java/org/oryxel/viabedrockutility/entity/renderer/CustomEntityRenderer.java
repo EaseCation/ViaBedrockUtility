@@ -1,11 +1,13 @@
 package org.oryxel.viabedrockutility.entity.renderer;
 
 import net.minecraft.client.render.Frustum;
+import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.entity.EntityRendererFactory;
 import net.minecraft.client.render.entity.MobEntityRenderer;
 import net.minecraft.client.render.entity.state.LivingEntityRenderState;
 import net.minecraft.entity.Entity;
 import net.minecraft.util.Identifier;
+import org.jetbrains.annotations.Nullable;
 import org.oryxel.viabedrockutility.entity.CustomEntity;
 import org.oryxel.viabedrockutility.entity.renderer.model.CustomEntityModel;
 
@@ -34,6 +36,11 @@ public class CustomEntityRenderer extends MobEntityRenderer<CustomEntity, Living
     }
 
     @Override
+    protected @Nullable RenderLayer getRenderLayer(LivingEntityRenderState state, boolean showBody, boolean translucent, boolean showOutline) {
+        return super.getRenderLayer(state, showBody, true, showOutline);
+    }
+
+    @Override
     public LivingEntityRenderState createRenderState() {
         return new LivingEntityRenderState();
     }
@@ -42,11 +49,11 @@ public class CustomEntityRenderer extends MobEntityRenderer<CustomEntity, Living
     public void updateRenderState(CustomEntity livingEntity, LivingEntityRenderState livingEntityRenderState, float f) {
         super.updateRenderState(livingEntity, livingEntityRenderState, f);
 
-        if (livingEntity.model != null) {
+        if (livingEntity.model != this.model) {
             this.model = livingEntity.model;
         }
 
-        if (livingEntity.texture != null) {
+        if (livingEntity.texture != this.texture) {
             this.texture = livingEntity.texture;
         }
     }
