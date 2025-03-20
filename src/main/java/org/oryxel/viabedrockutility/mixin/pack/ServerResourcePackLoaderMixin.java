@@ -29,7 +29,7 @@ public class ServerResourcePackLoaderMixin {
         packs.stream().map(ReloadScheduler.PackInfo::path).forEach(pack -> {
             try {
                 final Content content = new Content(Files.readAllBytes(pack));
-                for (final String path : content.getFilesDeep("bedrock/", ".tmp")) {
+                for (final String path : content.getFilesDeep("bedrock/", ".mcpack")) {
                     contents.add(new Content(content.get(path)));
                 }
             } catch (IOException e) {
