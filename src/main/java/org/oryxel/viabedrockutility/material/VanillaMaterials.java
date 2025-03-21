@@ -77,7 +77,6 @@ public class VanillaMaterials {
 
     private static RenderLayer build(final String name, int bufferSize, Identifier identifier, Consumer<RenderLayer.MultiPhaseParameters.Builder> consumer) {
         final RenderLayer.MultiPhaseParameters.Builder builder = RenderLayer.MultiPhaseParameters.builder();
-        builder.texture(MIPMAP_BLOCK_ATLAS_TEXTURE);
         builder.texture(new RenderPhase.Texture(identifier, TriState.FALSE, false));
         consumer.accept(builder);
         return of(name, VertexFormats.POSITION_COLOR_TEXTURE_LIGHT_NORMAL, VertexFormat.DrawMode.QUADS, bufferSize, true, true, builder.build(false));
