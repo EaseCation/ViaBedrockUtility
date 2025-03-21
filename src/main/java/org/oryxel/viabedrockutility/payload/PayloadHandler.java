@@ -202,7 +202,6 @@ public class PayloadHandler {
             }
 
             if (!found) {
-                System.out.println(requiredGeometry);
                 return;
             }
         }
@@ -210,7 +209,6 @@ public class PayloadHandler {
         if (model == null) {
             // This is likely a classic skin with hardcoded identifier! TODO: 128x128
             model = new PlayerEntityModel(PlayerEntityModel.getTexturedModelData(Dilation.NONE, slim).getRoot().createPart(64, 64), slim);
-            System.out.println("Hardcoded!");
         }
 
         final EntityRendererFactory.Context entityContext = new EntityRendererFactory.Context(client.getEntityRenderDispatcher(),

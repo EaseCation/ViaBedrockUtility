@@ -8,12 +8,12 @@
     "defaultRequire": 1
   },
   "client": [
+    "MinecraftClientMixin",
+    "accessor.PlayerSkinFieldAccessor",
     "network.ClientLoginNetworkHandlerMixin",
     "pack.ServerResourcePackLoaderMixin",
     "render.ModelPartMixin",
-    "render.feature.CapeFeatureRendererMixin",
     "render.dispatcher.EntityRenderDispatcherMixin",
-    "MinecraftClientMixin",,
-    "accessor.PlayerSkinFieldAccessor"
+    "render.feature.CapeFeatureRendererMixin"
   ]
 }

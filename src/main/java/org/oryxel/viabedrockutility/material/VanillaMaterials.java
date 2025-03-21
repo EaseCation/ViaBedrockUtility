@@ -67,18 +67,53 @@ public class VanillaMaterials {
         // I'm too lazy to map out the rest, the rest shouldn't be used for entity tho.... I think?
     }
 
+    public static boolean hasMaterial(final String name) {
+        return NAME_TO_MATERIAL.containsKey(name);
+    }
+
+    public static Function<Identifier, RenderLayer> getFunction(final String name) {
+        return NAME_TO_MATERIAL.get(name);
+    }
+
     public static RenderLayer getRenderLayer(final String name, final Identifier identifier) {
         if (!NAME_TO_MATERIAL.containsKey(name)) {
             return getEntitySolid(identifier);
         }
         
-        return NAME_TO_MATERIAL.get(name).apply(identifier);
+        return getFunction(name).apply(identifier);
+    }
+
+    public static RenderLayer.MultiPhaseParameters.Builder renderLayerToBuilder(final RenderLayer rawLayer, final Identifier identifier) {
+        final RenderLayer.MultiPhaseParameters.Builder builder = RenderLayer.MultiPhaseParameters.builder();
+        if (rawLayer instanceof MultiPhase renderLayer) {
+            MultiPhaseParameters parameters = renderLayer.phases;
+            builder.texture(new RenderPhase.Texture(identifier, TriState.FALSE, false));
+            builder.program(parameters.program);
+            builder.transparency(parameters.transparency);
+            builder.depthTest(parameters.depthTest);
+            builder.cull(parameters.cull);
+            builder.lightmap(parameters.lightmap);
+            builder.overlay(parameters.overlay);
+            builder.layering(parameters.layering);
+            builder.target(parameters.target);
+            builder.texturing(parameters.texturing);
+            builder.writeMaskState(parameters.writeMaskState);
+            builder.lineWidth(parameters.lineWidth);
+            builder.colorLogic(parameters.colorLogic);
+        }
+
+        return builder;
+    }
+
+    public static RenderLayer build(final String name, int bufferSize, RenderLayer.MultiPhaseParameters.Builder builder) {
+        return of(name, VertexFormats.POSITION_COLOR_TEXTURE_LIGHT_NORMAL, VertexFormat.DrawMode.QUADS, bufferSize, true, true, builder.build(false));
     }
 
     private static RenderLayer build(final String name, int bufferSize, Identifier identifier, Consumer<RenderLayer.MultiPhaseParameters.Builder> consumer) {
         final RenderLayer.MultiPhaseParameters.Builder builder = RenderLayer.MultiPhaseParameters.builder();
         builder.texture(new RenderPhase.Texture(identifier, TriState.FALSE, false));
         consumer.accept(builder);
+
         return of(name, VertexFormats.POSITION_COLOR_TEXTURE_LIGHT_NORMAL, VertexFormat.DrawMode.QUADS, bufferSize, true, true, builder.build(false));
     }
 }

@@ -3,6 +3,7 @@ package org.oryxel.viabedrockutility.pack;
 import lombok.Getter;
 import org.oryxel.viabedrockutility.pack.content.Content;
 import org.oryxel.viabedrockutility.pack.definitions.EntityDefinitions;
+import org.oryxel.viabedrockutility.pack.definitions.MaterialDefinitions;
 import org.oryxel.viabedrockutility.pack.definitions.ModelDefinitions;
 import org.oryxel.viabedrockutility.pack.processor.TextureProcessor;
 
@@ -13,12 +14,14 @@ public class PackManager {
     private final List<Content> packs;
     private final EntityDefinitions entityDefinitions;
     private final ModelDefinitions modelDefinitions;
+    private final MaterialDefinitions materialDefinitions;
 
     public PackManager(final List<Content> packs) {
         this.packs = packs;
 
         this.entityDefinitions = new EntityDefinitions(this);
         this.modelDefinitions = new ModelDefinitions(this);
+        this.materialDefinitions = new MaterialDefinitions(this);
 
         TextureProcessor.process(packs);
 
