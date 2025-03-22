@@ -3,20 +3,25 @@ package org.oryxel.viabedrockutility.material.data;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.mojang.blaze3d.platform.GlStateManager;
+import com.mojang.blaze3d.systems.RenderSystem;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
-import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.render.*;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.TriState;
 import net.minecraft.util.Util;
 
 import java.util.*;
 import java.util.function.Function;
 
+import static net.minecraft.client.render.RenderPhase.*;
 import static org.oryxel.viabedrockutility.util.JsonUtil.*;
 
-public record Material(String identifier, String baseIdentifier, MaterialInfo info, Function<Identifier, RenderLayer> function) {
+// https://wiki.bedrock.dev/visuals/materials
+public record Material(String identifier, String baseIdentifier, MaterialInfo info) {
     public static Map<String, Material> parse(final Map<String, Material> existing, final JsonObject base) {
         final Map<String, Material> map = new HashMap<>();
 
@@ -52,7 +57,7 @@ public record Material(String identifier, String baseIdentifier, MaterialInfo in
             }
 
             material.parse(object, false);
-            map.put(identifier, new Material(identifier, baseIdentifier, material, material.build()));
+            map.put(identifier, new Material(identifier, baseIdentifier, material));
         }
 
         return map;
@@ -68,6 +73,8 @@ public record Material(String identifier, String baseIdentifier, MaterialInfo in
         protected String blendSrc = "", blendDst = "", depthFunc = "";
 
         protected final Map<String, Variant> variants = new HashMap<>();
+
+        private Function<Identifier, RenderLayer> function;
 
         public void parse(final JsonObject object, boolean ignoreVariants) {
             final Set<String> extraStates = arrayToStringSet(object.getAsJsonArray("+states"));
@@ -127,15 +134,144 @@ public record Material(String identifier, String baseIdentifier, MaterialInfo in
                 v.defines.addAll(extraDefines);
                 v.states.removeAll(removeStates);
                 v.defines.removeAll(removeDefines);
+
+                v.vertexFields.addAll(vertexFields);
             });
         }
 
         public Function<Identifier, RenderLayer> build() {
-            return Util.memoize(texture -> {
+            return Objects.requireNonNullElseGet(this.function, () -> this.function = Util.memoize(texture -> {
                 final RenderLayer.MultiPhaseParameters.Builder builder = RenderLayer.MultiPhaseParameters.builder();
+                if (!this.defines.contains("NO_TEXTURE")) {
+                    builder.texture(new Texture(texture, TriState.FALSE, false));
+                }
 
-                return null;
-            });
+                builder.program(ENTITY_SOLID_PROGRAM);
+                builder.lightmap(ENABLE_LIGHTMAP);
+
+                if (this.defines.contains("USE_OVERLAY")) {
+                    builder.overlay(ENABLE_OVERLAY_COLOR);
+                }
+
+                if (this.states.contains("Blending")) {
+                    builder.transparency(TRANSLUCENT_TRANSPARENCY);
+                }
+
+                if (this.states.contains("DisableCulling")) {
+                    builder.cull(DISABLE_CULLING);
+                } else {
+                    builder.cull(ENABLE_CULLING);
+                }
+
+                builder.depthTest(switch (this.depthFunc) {
+                    case "Equal" -> EQUAL_DEPTH_TEST;
+                    case "Bigger" -> BIGGER_DEPTH_TEST;
+                    default -> RenderPhase.LEQUAL_DEPTH_TEST;
+                });
+
+//                if (!this.states.contains("DisableDepthWrite")) {
+//                }
+
+                if (this.defines.contains("USE_COLOR_MASK")) {
+                    builder.writeMaskState(COLOR_MASK);
+                }
+
+                if (this.defines.contains("ALPHA_TEST")) {
+                    builder.program(ENTITY_ALPHA_PROGRAM);
+                }
+
+                if (this.defines.contains("USE_EMISSIVE")) {
+                    builder.program(ENTITY_TRANSLUCENT_EMISSIVE_PROGRAM);
+                }
+
+                if (!this.blendSrc.isBlank() && !this.blendDst.isBlank()) {
+                    final GlStateManager.SrcFactor srcFactor = switch (this.blendSrc) {
+                        case "SourceAlpha" -> GlStateManager.SrcFactor.SRC_ALPHA;
+                        case "SourceColor" -> GlStateManager.SrcFactor.SRC_COLOR;
+                        case "ConstantAlpha" -> GlStateManager.SrcFactor.CONSTANT_ALPHA;
+                        case "ConstantColor" -> GlStateManager.SrcFactor.CONSTANT_COLOR;
+                        case "DstAlpha" -> GlStateManager.SrcFactor.DST_ALPHA;
+                        case "DstColor" -> GlStateManager.SrcFactor.DST_COLOR;
+                        case "OneMinusConstantAlpha" -> GlStateManager.SrcFactor.ONE_MINUS_CONSTANT_ALPHA;
+                        case "OneMinusConstantColor" -> GlStateManager.SrcFactor.ONE_MINUS_CONSTANT_COLOR;
+                        case "OneMinusDstAlpha" -> GlStateManager.SrcFactor.ONE_MINUS_DST_ALPHA;
+                        case "OneMinusDstColor" -> GlStateManager.SrcFactor.ONE_MINUS_DST_COLOR;
+                        case "OneMinusSrcAlpha" -> GlStateManager.SrcFactor.ONE_MINUS_SRC_ALPHA;
+                        case "OneMinusSrcColor" -> GlStateManager.SrcFactor.ONE_MINUS_SRC_COLOR;
+                        case "SourceAlphaSaturate" -> GlStateManager.SrcFactor.SRC_ALPHA_SATURATE;
+                        case "Zero" -> GlStateManager.SrcFactor.ZERO;
+                        default -> GlStateManager.SrcFactor.ONE;
+                    };
+
+                    final GlStateManager.DstFactor dstFactor = switch (this.blendDst) {
+                        case "SourceAlpha" -> GlStateManager.DstFactor.SRC_ALPHA;
+                        case "SourceColor" -> GlStateManager.DstFactor.SRC_COLOR;
+                        case "ConstantAlpha" -> GlStateManager.DstFactor.CONSTANT_ALPHA;
+                        case "ConstantColor" -> GlStateManager.DstFactor.CONSTANT_COLOR;
+                        case "DstAlpha" -> GlStateManager.DstFactor.DST_ALPHA;
+                        case "DstColor" -> GlStateManager.DstFactor.DST_COLOR;
+                        case "OneMinusConstantAlpha" -> GlStateManager.DstFactor.ONE_MINUS_CONSTANT_ALPHA;
+                        case "OneMinusConstantColor" -> GlStateManager.DstFactor.ONE_MINUS_CONSTANT_COLOR;
+                        case "OneMinusDstAlpha" -> GlStateManager.DstFactor.ONE_MINUS_DST_ALPHA;
+                        case "OneMinusDstColor" -> GlStateManager.DstFactor.ONE_MINUS_DST_COLOR;
+                        case "OneMinusSrcAlpha" -> GlStateManager.DstFactor.ONE_MINUS_SRC_ALPHA;
+                        case "OneMinusSrcColor" -> GlStateManager.DstFactor.ONE_MINUS_SRC_COLOR;
+                        case "Zero" -> GlStateManager.DstFactor.ZERO;
+                        default -> GlStateManager.DstFactor.ONE;
+                    };
+
+                    builder.transparency(new Transparency(this.blendSrc + "_" + this.blendDst, () -> {
+                        RenderSystem.enableBlend();
+                        RenderSystem.blendFunc(srcFactor, dstFactor);
+                    }, () -> {
+                        RenderSystem.disableBlend();
+                        RenderSystem.defaultBlendFunc();
+                    }));
+                }
+
+                final VertexFormat vertexFormat;
+                if (!this.vertexFields.isEmpty()) {
+                    VertexFormat.Builder vertexBuilder = VertexFormat.builder();
+                    //         POSITION_COLOR_TEXTURE_OVERLAY_LIGHT_NORMAL = VertexFormat.
+                    //         builder().add("Position", VertexFormatElement.POSITION).add("Color", VertexFormatElement.COLOR)
+                    //         .add("UV0", VertexFormatElement.UV_0).add("UV1", VertexFormatElement.UV_1)
+                    //         .add("UV2", VertexFormatElement.UV_2).add("Normal", VertexFormatElement.NORMAL).skip(1).build();
+
+                    if (this.vertexFields.contains("Position")) {
+                        vertexBuilder.add("Position", VertexFormatElement.POSITION);
+                    }
+                    if (this.vertexFields.contains("Color")) {
+                        vertexBuilder.add("Color", VertexFormatElement.COLOR);
+                    }
+                    if (this.vertexFields.contains("UV")) {
+                        vertexBuilder.add("UV", VertexFormatElement.UV);
+                    }
+                    if (this.vertexFields.contains("UV0")) {
+                        vertexBuilder.add("UV0", VertexFormatElement.UV_0);
+                    }
+                    if (this.vertexFields.contains("BoneId0")) {
+                        // No idea, bold ass assumption
+                        vertexBuilder.add("UV1", VertexFormatElement.UV_1);
+                        vertexBuilder.add("UV2", VertexFormatElement.UV_2);
+                    } else {
+                        if (this.vertexFields.contains("UV1")) {
+                            vertexBuilder.add("UV1", VertexFormatElement.UV_1);
+                        }
+                        if (this.vertexFields.contains("UV2")) {
+                            vertexBuilder.add("UV2", VertexFormatElement.UV_2);
+                        }
+                    }
+                    if (this.vertexFields.contains("Normal")) {
+                        vertexBuilder.add("Normal", VertexFormatElement.NORMAL).skip(1);
+                    }
+                    vertexFormat = vertexBuilder.build();
+                } else {
+                    vertexFormat = VertexFormats.POSITION_COLOR_TEXTURE_OVERLAY_LIGHT_NORMAL;
+                }
+
+                return RenderLayer.of("custom", vertexFormat, this.defines.contains("LINE_STRIP") ? VertexFormat.DrawMode.LINE_STRIP : VertexFormat.DrawMode.QUADS, 1536, true, true, builder.build(false));
+            }));
+
         }
 
         public static MaterialInfo emptyMaterial() {

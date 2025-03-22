@@ -12,8 +12,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 // https://wiki.bedrock.dev/documentation/materials
-// https://wiki.bedrock.dev/visuals/materials
-// This is all I can find on this, eh so prob not that accurate.
 public class VanillaMaterials {
     public static final Map<String, Material> NAME_TO_MATERIAL = new HashMap<>();
 
