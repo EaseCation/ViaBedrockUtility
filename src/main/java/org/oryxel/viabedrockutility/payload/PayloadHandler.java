@@ -33,6 +33,7 @@ import org.oryxel.viabedrockutility.util.PlayerSkinBuilder;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 
 @Getter
 public class PayloadHandler {
@@ -89,7 +90,7 @@ public class PayloadHandler {
         }
 
         final MinecraftClient client = MinecraftClient.getInstance();
-        client.getTextureManager().registerTexture(payload.getIdentifier(), new NativeImageBackedTexture(capeImage));
+        client.getTextureManager().registerTexture(payload.getIdentifier(), new NativeImageBackedTexture(() -> payload.getPlayerUuid().toString() + capeImage.hashCode(),capeImage));
 
         if (client.getNetworkHandler() == null) {
             return;
@@ -136,7 +137,7 @@ public class PayloadHandler {
         final MinecraftClient client = MinecraftClient.getInstance();
 
         final Identifier identifier = Identifier.of(ViaBedrockUtilityFabric.MOD_ID, payload.getPlayerUuid().toString());
-        client.getTextureManager().registerTexture(identifier, new NativeImageBackedTexture(skinImage));
+        client.getTextureManager().registerTexture(identifier, new NativeImageBackedTexture(() -> payload.getPlayerUuid().toString() + skinImage.hashCode(), skinImage));
 
         if (client.getNetworkHandler() != null) {
             final PlayerListEntry entry = client.getNetworkHandler().getPlayerListEntry(payload.getPlayerUuid());
