@@ -39,6 +39,6 @@ public class VanillaMaterials {
     }
 
     public static Material getMaterial(final String name) {
-        return NAME_TO_MATERIAL.get(name);
+        return NAME_TO_MATERIAL.getOrDefault(name, NAME_TO_MATERIAL.get("entity"));
     }
 }

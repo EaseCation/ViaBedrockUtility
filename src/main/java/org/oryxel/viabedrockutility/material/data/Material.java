@@ -22,7 +22,7 @@ import net.minecraft.util.Util;
 import java.util.*;
 import java.util.function.Function;
 
-import static net.minecraft.client.gl.RenderPipelines.MATRICES_COLOR_FOG_LIGHT_DIR_SNIPPET;
+import static net.minecraft.client.gl.RenderPipelines.ENTITY_SNIPPET;
 import static net.minecraft.client.render.RenderPhase.*;
 import static org.oryxel.viabedrockutility.util.JsonUtil.*;
 
@@ -246,19 +246,20 @@ public record Material(String identifier, String baseIdentifier, MaterialInfo in
                     blend = BlendFunction.TRANSLUCENT;
                 }
 
-                RenderPipeline.Builder builder = RenderPipeline.builder(MATRICES_COLOR_FOG_LIGHT_DIR_SNIPPET).withVertexShader("core/entity").withFragmentShader("core/entity").withSampler("Sampler0").withSampler("Sampler2").withSampler("Sampler1")
-                        .withVertexFormat(vertexFormat, this.defines.contains("LINE_STRIP") ? VertexFormat.DrawMode.LINE_STRIP : VertexFormat.DrawMode.QUADS);
+                RenderPipeline.Builder builder = RenderPipeline.builder(ENTITY_SNIPPET).withSampler("Sampler1");
 
                 builder.withLocation(Identifier.of("viabedrockutility", "pipeline/" + UUID.randomUUID() + this.hashCode()));
                 builder.withBlend(blend);
 
-                if (!this.fragmentShader.isBlank()) {
-                    builder.withFragmentShader(Identifier.of("viabedrockutility", "vanilla_packs/" + this.fragmentShader));
-                }
+                builder.withVertexFormat(vertexFormat, this.defines.contains("LINE_STRIP") ? VertexFormat.DrawMode.LINE_STRIP : VertexFormat.DrawMode.QUADS);
 
-                if (!this.vertexShader.isBlank()) {
-                    builder.withVertexShader(Identifier.of("viabedrockutility", "vanilla_packs/" + this.vertexShader));
-                }
+                // Totally possible, but not now.
+//                if (!this.fragmentShader.isBlank()) {
+//                    builder.withFragmentShader(this.fragmentShader.replace("shaders/", "").split("\\.")[0]);
+//                }
+//                if (!this.vertexShader.isBlank()) {
+//                    builder.withVertexShader(this.vertexShader.replace("shaders/", "").split("\\.")[0]);
+//                }
 
                 builder.withCull(!this.states.contains("DisableCulling"));
 
@@ -284,10 +285,7 @@ public record Material(String identifier, String baseIdentifier, MaterialInfo in
                 }
 
                 renderLayerBuilder.lightmap(ENABLE_LIGHTMAP);
-
-                if (this.defines.contains("USE_OVERLAY")) {
-                    renderLayerBuilder.overlay(ENABLE_OVERLAY_COLOR);
-                }
+                renderLayerBuilder.overlay(ENABLE_OVERLAY_COLOR);
                 return RenderLayer.of("custom", 1536, true, true, builder.build(), renderLayerBuilder.build(false));
             }));
 
@@ -312,6 +310,8 @@ public record Material(String identifier, String baseIdentifier, MaterialInfo in
                 info.setBlendDst(blendDst);
                 info.setBlendSrc(blendSrc);
                 info.setDepthFunc(depthFunc);
+                info.setVertexShader(vertexShader);
+                info.setFragmentShader(fragmentShader);
                 return info;
             }
         }
@@ -322,6 +322,8 @@ public record Material(String identifier, String baseIdentifier, MaterialInfo in
             info.setBlendDst(blendDst);
             info.setBlendSrc(blendSrc);
             info.setDepthFunc(depthFunc);
+            info.setVertexShader(vertexShader);
+            info.setFragmentShader(fragmentShader);
             variants.forEach((k, v) -> {
                 info.variants.put(k, v.clone());
             });

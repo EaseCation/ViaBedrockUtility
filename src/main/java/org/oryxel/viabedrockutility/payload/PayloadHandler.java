@@ -24,9 +24,7 @@ import org.oryxel.viabedrockutility.payload.impl.entity.ModelRequestPayload;
 import org.oryxel.viabedrockutility.payload.impl.skin.BaseSkinPayload;
 import org.oryxel.viabedrockutility.payload.impl.skin.CapeDataPayload;
 import org.oryxel.viabedrockutility.payload.impl.skin.SkinDataPayload;
-import org.oryxel.viabedrockutility.renderer.BaseCustomEntityRenderer;
 import org.oryxel.viabedrockutility.renderer.CustomPlayerRenderer;
-import org.oryxel.viabedrockutility.renderer.extra.CustomEntityRendererImpl;
 import org.oryxel.viabedrockutility.util.GeometryUtil;
 
 import org.oryxel.viabedrockutility.util.ImageUtil;
@@ -37,10 +35,10 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Getter
 public class PayloadHandler {
-    private final Map<UUID, EntityRenderer<?, ?>> cachedPlayerRenderers = new ConcurrentHashMap<>();
-    private final Map<UUID, EntityRenderer<?, ?>> cachedRenderers = new ConcurrentHashMap<>();
-    private final Map<UUID, SkinInfo> cachedSkinInfo = new ConcurrentHashMap<>();
-    private PackManager packManager;
+    protected final Map<UUID, EntityRenderer<?, ?>> cachedPlayerRenderers = new ConcurrentHashMap<>();
+    protected final Map<UUID, EntityRenderer<?, ?>> cachedRenderers = new ConcurrentHashMap<>();
+    protected final Map<UUID, SkinInfo> cachedSkinInfo = new ConcurrentHashMap<>();
+    protected PackManager packManager;
 
     public void handle(final BasePayload payload) {
         if (this.packManager != ViaBedrockUtility.getInstance().getPackManager()) {
@@ -62,26 +60,7 @@ public class PayloadHandler {
         }
     }
 
-    public void handle(final ModelRequestPayload payload) {
-        final MinecraftClient client = MinecraftClient.getInstance();
-
-        final List<BaseCustomEntityRenderer.Model> models = new ArrayList<>();
-        for (ModelRequestPayload.Model model : payload.getModels()) {
-            final Identifier texture = Identifier.of(model.texture().toLowerCase(Locale.ROOT));
-            final BedrockGeometryModel geometry = this.packManager.getModelDefinitions().getEntityModels().get(model.geometry());
-            if (geometry == null) {
-                continue;
-            }
-
-            models.add(new BaseCustomEntityRenderer.Model((EntityModel<?>) GeometryUtil.buildModel(geometry, false, false), texture));
-        }
-
-        final EntityRendererFactory.Context context = new EntityRendererFactory.Context(client.getEntityRenderDispatcher(),
-                client.getItemModelManager(), client.getMapRenderer(), client.getBlockRenderManager(),
-                client.getResourceManager(), client.getLoadedEntityModels(), new EquipmentModelLoader(), client.textRenderer);
-
-        this.cachedRenderers.put(payload.getUuid(), new CustomEntityRendererImpl<>(models, context));
-    }
+    public void handle(final ModelRequestPayload payload) {}
 
     public void handle(final CapeDataPayload payload) {
         final NativeImage capeImage = ImageUtil.toNativeImage(payload.getCapeData(), payload.getWidth(), payload.getHeight());
@@ -105,6 +84,7 @@ public class PayloadHandler {
 
         final PlayerSkinBuilder builder = new PlayerSkinBuilder(entry.getSkinTextures());
         builder.capeTexture = payload.getIdentifier();
+
 
         ((PlayerSkinFieldAccessor)entry).setPlayerSkin(builder::build);
     }

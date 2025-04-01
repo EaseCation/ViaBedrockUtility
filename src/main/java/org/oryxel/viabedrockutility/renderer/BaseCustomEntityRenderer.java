@@ -9,6 +9,7 @@ import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.Entity;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.RotationAxis;
+import org.oryxel.viabedrockutility.material.data.Material;
 
 import java.util.List;
 
@@ -31,7 +32,7 @@ public class BaseCustomEntityRenderer<T extends Entity> extends EntityRenderer<T
             matrices.scale(-1.0F, -1.0F, 1.0F);
             matrices.translate(0.0F, -1.501F, 0.0F);
 
-            RenderLayer renderLayer = RenderLayer.getItemEntityTranslucentCull(model.texture);
+            RenderLayer renderLayer = model.material.info().getVariants().get("skinning_color").build().apply(model.texture);
             if (renderLayer != null) {
                 VertexConsumer vertexConsumer = vertexConsumers.getBuffer(renderLayer);
                 model.model.render(matrices, vertexConsumer, light, OverlayTexture.packUv(0, 10));
@@ -65,7 +66,7 @@ public class BaseCustomEntityRenderer<T extends Entity> extends EntityRenderer<T
         return new CustomEntityRenderState();
     }
 
-    public record Model(EntityModel<?> model, Identifier texture) {
+    public record Model(EntityModel<?> model, Identifier texture, Material material) {
     }
 
     public static class CustomEntityRenderState extends EntityRenderState {

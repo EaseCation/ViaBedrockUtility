@@ -7,6 +7,7 @@ import org.oryxel.viabedrockutility.material.data.Material;
 import org.oryxel.viabedrockutility.pack.PackManager;
 import org.oryxel.viabedrockutility.pack.content.Content;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -20,11 +21,15 @@ public class MaterialDefinitions {
             }
 
             try {
-                NAME_TO_MATERIAL.putAll(Material.parse(VanillaMaterials.NAME_TO_MATERIAL, JsonParser.parseString(content.getString("materials/entity.material")).getAsJsonObject()));
+                NAME_TO_MATERIAL.putAll(Material.parse(Collections.unmodifiableMap(VanillaMaterials.NAME_TO_MATERIAL), JsonParser.parseString(content.getString("materials/entity.material")).getAsJsonObject()));
             } catch (Throwable e) {
                 ViaBedrockUtilityFabric.LOGGER.warn("Failed to parse entity material!");
             }
         }
+    }
+
+    public boolean hasMaterial(final String name) {
+        return NAME_TO_MATERIAL.containsKey(name);
     }
 
     public Material getMaterial(final String name) {

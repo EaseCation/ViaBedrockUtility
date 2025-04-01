@@ -35,13 +35,22 @@ public class BasePayload implements CustomPayload {
             case MODEL_REQUEST -> {
                 final String identifier = readString(buf);
                 final long bitmask = buf.readLong();
+
+                Integer variant = null, mark_variant = null;
+                if (buf.readBoolean()) {
+                    variant = buf.readInt();
+                }
+                if (buf.readBoolean()) {
+                    mark_variant = buf.readInt();
+                }
+
                 final UUID uuid = buf.readUuid();
                 final ModelRequestPayload.Model[] models = new ModelRequestPayload.Model[buf.readInt()];
                 for (int i = 0; i < models.length; i++) {
-                    models[i] = new ModelRequestPayload.Model(readString(buf), readString(buf));
+                    models[i] = new ModelRequestPayload.Model(readString(buf), readString(buf), readString(buf));
                 }
 
-                return new ModelRequestPayload(identifier, bitmask, uuid, models);
+                return new ModelRequestPayload(identifier, bitmask, variant, mark_variant, uuid, models);
             }
 
             case ANIMATE -> {
