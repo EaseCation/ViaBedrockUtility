@@ -26,4 +26,8 @@ public class MaterialDefinitions {
             }
         }
     }
+
+    public Material getMaterial(final String name) {
+        return NAME_TO_MATERIAL.getOrDefault(name, VanillaMaterials.getMaterial(name));
+    }
 }

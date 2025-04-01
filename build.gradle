@@ -46,6 +46,10 @@ dependencies {
 
 	lib 'org.projectlombok:lombok:1.18.36'
 	annotationProcessor 'org.projectlombok:lombok:1.18.36'
+
+	lib("team.unnamed:mocha:3.0.1") {
+		transitive = false
+	}
 }
 
 processResources {
