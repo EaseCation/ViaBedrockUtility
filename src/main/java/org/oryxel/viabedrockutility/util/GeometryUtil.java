@@ -9,12 +9,11 @@ import org.cube.converter.model.element.Cube;
 import org.cube.converter.model.element.Parent;
 import org.cube.converter.model.impl.bedrock.BedrockGeometryModel;
 import org.cube.converter.util.element.UVMap;
+import org.oryxel.viabedrockutility.mixin.interfaces.IModelPart;
 
 import java.util.*;
 
 public final class GeometryUtil {
-    public static String HARDCODED_INDICATOR = "viabedrockutility" + "viabedrockutility".hashCode();
-
     public static Model buildModel(final BedrockGeometryModel geometry, final boolean player, boolean slim) {
         // There are some times when the skin image file is larger than the geometry UV points.
         // In this case, we need to scale UV calls
@@ -27,10 +26,15 @@ public final class GeometryUtil {
             final Map<String, ModelPart> children = Maps.newHashMap();
             final ModelPart part = new ModelPart(List.of(), children);
 
-            part.setOrigin(bone.getPivot().getX(), -bone.getPivot().getY() + 24.016F, bone.getPivot().getZ());
-            part.setAngles(bone.getRotation().getX() * MathUtil.DEGREES_TO_RADIANS, bone.getRotation().getY() * MathUtil.DEGREES_TO_RADIANS, bone.getRotation().getZ() * MathUtil.DEGREES_TO_RADIANS);
-            // Seems to be important or else the pivot and rotation will be reset.
-            part.setDefaultTransform(part.getTransform());
+            boolean neededOffset = switch (bone.getName().toLowerCase(Locale.ROOT)) {
+                case "rightarm", "leftarm" -> true;
+                default -> false;
+            };
+
+            ((IModelPart)((Object)part)).viaBedrockUtility$setVBUModel();
+            ((IModelPart)((Object)part)).viaBedrockUtility$setNeededOffset(neededOffset);
+            ((IModelPart)((Object)part)).viaBedrockUtility$setPivot(bone.getPivot().getX(), -bone.getPivot().getY() + 24.016F, bone.getPivot().getZ());
+            ((IModelPart)((Object)part)).viaBedrockUtility$setAngles(bone.getRotation().getX() * MathUtil.DEGREES_TO_RADIANS, bone.getRotation().getY() * MathUtil.DEGREES_TO_RADIANS, bone.getRotation().getZ() * MathUtil.DEGREES_TO_RADIANS);
 
             // Java don't allow individual cubes to have their own rotation therefore, we have to separate each cube into ModelPart to be able to rotate.
             for (final Cube cube : bone.getCubes().values()) {
@@ -50,10 +54,11 @@ public final class GeometryUtil {
                 final ModelPart.Cuboid cuboid = new ModelPart.Cuboid(0, 0, cube.getPosition().getX(), -(cube.getPosition().getY() - 24.016F + sizeY), cube.getPosition().getZ(), sizeX, sizeY, sizeZ, inflate, inflate, inflate, cube.isMirror(), uvWidth, uvHeight, set);
                 correctUv(cuboid, set, uvMap, uvWidth, uvHeight, cube.getInflate(), cube.isMirror());
 
-                final ModelPart cubePart = new ModelPart(List.of(cuboid), Map.of(HARDCODED_INDICATOR, new ModelPart(List.of(), Map.of())));
-                cubePart.setOrigin(cube.getPivot().getX(), -cube.getPivot().getY() + 24.016F, cube.getPivot().getZ());
-                cubePart.setAngles(cube.getRotation().getX() * MathUtil.DEGREES_TO_RADIANS, cube.getRotation().getY() * MathUtil.DEGREES_TO_RADIANS, cube.getRotation().getZ() * MathUtil.DEGREES_TO_RADIANS);
-                cubePart.setDefaultTransform(cubePart.getTransform());
+                final ModelPart cubePart = new ModelPart(List.of(cuboid), Map.of());
+                ((IModelPart)((Object)cubePart)).viaBedrockUtility$setPivot(cube.getPivot().getX(), -cube.getPivot().getY() + 24.016F, cube.getPivot().getZ());
+                ((IModelPart)((Object)cubePart)).viaBedrockUtility$setAngles(cube.getRotation().getX() * MathUtil.DEGREES_TO_RADIANS, cube.getRotation().getY() * MathUtil.DEGREES_TO_RADIANS, cube.getRotation().getZ() * MathUtil.DEGREES_TO_RADIANS);
+                ((IModelPart)((Object)cubePart)).viaBedrockUtility$setVBUModel();
+                ((IModelPart)((Object)cubePart)).viaBedrockUtility$setNeededOffset(neededOffset);
                 children.put(cube.getParent() + cube.hashCode(), cubePart);
             }
 
@@ -78,8 +83,6 @@ public final class GeometryUtil {
         }
 
         for (Map.Entry<String, PartInfo> entry : stringToPart.entrySet()) {
-            entry.getValue().children.put(HARDCODED_INDICATOR, new ModelPart(List.of(), Map.of()));
-
             if (entry.getValue().parent.isBlank() && entry.getValue().part() != root.part) {
                 root.children.put(entry.getKey(), entry.getValue().part());
                 continue;
@@ -89,32 +92,6 @@ public final class GeometryUtil {
             if (parentPart != null) {
                 parentPart.children.put(entry.getKey(), entry.getValue().part);
             }
-        }
-
-        if (player) {
-            // Not really sure if this still belongs to the player model.
-//            root.children.computeIfAbsent("cloak", (string) -> // Required to allow a cape to render
-//                    BipedEntityModel.getModelData(Dilation.NONE, 0.0F).getRoot().addChild(string,
-//                            ModelPartBuilder.create()
-//                                    .uv(0, 0)
-//                                    .cuboid(-5.0F, 0.0F, -1.0F, 10.0F, 16.0F, 1.0F, Dilation.NONE, 1.0F, 0.5F),
-//                            ModelTransform.pivot(0.0F, 0.0F, 0.0F)).createPart(64, 64));
-
-            ensureAvailable(stringToPart, root.children, "head");
-            ensureAvailable(stringToPart, root.children, "body");
-            ensureAvailable(stringToPart, root.children, "left_arm");
-            ensureAvailable(stringToPart, root.children, "right_arm");
-            ensureAvailable(stringToPart, root.children, "left_leg");
-            ensureAvailable(stringToPart, root.children, "right_leg");
-
-            ensureAvailable(stringToPart, stringToPart.get("head").children, "hat");
-
-            ensureAvailable(stringToPart, stringToPart.get("left_arm").children, "left_sleeve");
-            ensureAvailable(stringToPart, stringToPart.get("right_arm").children, "right_sleeve");
-            ensureAvailable(stringToPart, stringToPart.get("left_leg").children, "left_pants");
-            ensureAvailable(stringToPart, stringToPart.get("right_leg").children, "right_pants");
-
-            ensureAvailable(stringToPart, stringToPart.get("body").children, "jacket");
         }
 
         return player ? new PlayerEntityModel(root.part(), slim) : new EntityModel<>(root.part()) {};
@@ -132,13 +109,6 @@ public final class GeometryUtil {
             case "rightleg" -> "right_leg";
             default -> name.toLowerCase(Locale.ROOT);
         };
-    }
-
-    private static void ensureAvailable(Map<String, PartInfo> stringToPart, Map<String, ModelPart> children, String name) {
-        final Map<String, ModelPart> children1 = Maps.newHashMap();
-        final ModelPart part = new ModelPart(Collections.emptyList(), children1);
-        stringToPart.putIfAbsent(name, new PartInfo("", part, children1));
-        children.putIfAbsent(name, part);
     }
 
     private record PartInfo(String parent, ModelPart part, Map<String, ModelPart> children) {

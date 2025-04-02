@@ -1,4 +1,4 @@
-package org.oryxel.viabedrockutility.mixin.render.feature;
+package org.oryxel.viabedrockutility.mixin.impl.render.feature;
 
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.entity.feature.CapeFeatureRenderer;

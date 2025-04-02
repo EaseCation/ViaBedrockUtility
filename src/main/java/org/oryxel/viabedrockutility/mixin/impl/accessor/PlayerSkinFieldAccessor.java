@@ -1,4 +1,4 @@
-package org.oryxel.viabedrockutility.mixin.accessor;
+package org.oryxel.viabedrockutility.mixin.impl.accessor;
 
 import net.minecraft.client.network.PlayerListEntry;
 import net.minecraft.client.util.SkinTextures;

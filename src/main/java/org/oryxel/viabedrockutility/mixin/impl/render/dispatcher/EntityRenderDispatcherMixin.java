@@ -1,4 +1,4 @@
-package org.oryxel.viabedrockutility.mixin.render.dispatcher;
+package org.oryxel.viabedrockutility.mixin.impl.render.dispatcher;
 
 import net.minecraft.client.render.entity.EntityRenderDispatcher;
 import net.minecraft.client.render.entity.EntityRenderer;

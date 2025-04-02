@@ -1,4 +1,4 @@
-package org.oryxel.viabedrockutility.mixin.entity;
+package org.oryxel.viabedrockutility.mixin.impl.entity;
 
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.decoration.DisplayEntity;

@@ -1,4 +1,4 @@
-package org.oryxel.viabedrockutility.mixin.pack;
+package org.oryxel.viabedrockutility.mixin.impl.pack;
 
 import net.minecraft.client.resource.server.ReloadScheduler;
 import net.minecraft.client.resource.server.ServerResourcePackLoader;

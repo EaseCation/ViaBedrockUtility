@@ -1,4 +1,4 @@
-package org.oryxel.viabedrockutility.mixin.network;
+package org.oryxel.viabedrockutility.mixin.impl.network;
 
 import net.fabricmc.fabric.impl.networking.RegistrationPayload;
 import net.minecraft.client.network.ClientLoginNetworkHandler;
