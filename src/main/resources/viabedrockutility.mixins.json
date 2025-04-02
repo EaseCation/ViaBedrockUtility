@@ -10,11 +10,14 @@
   "client": [
     "MinecraftClientMixin",
     "accessor.PlayerSkinFieldAccessor",
+    "entity.EntityMixin",
+    "entity.player.AbstractClientPlayerMixin",
     "network.ClientLoginNetworkHandlerMixin",
     "pack.ServerResourcePackLoaderMixin",
     "render.ModelPartMixin",
     "render.dispatcher.EntityRenderDispatcherMixin",
     "render.feature.CapeFeatureRendererMixin",
-    "entity.EntityMixin"
+    ,
+    "world.ClientWorldMixin"
   ]
 }

@@ -14,6 +14,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public abstract class EntityRenderDispatcherMixin {
     @Inject(method = "getRenderer", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/util/SkinTextures;model()Lnet/minecraft/client/util/SkinTextures$Model;"), cancellable = true)
     public <T extends Entity> void getPlayerRenderer(T entity, CallbackInfoReturnable<EntityRenderer<? super T, ?>> cir) {
+        if (!ViaBedrockUtility.getInstance().isViaBedrockPresent()) {
+            return;
+        }
+
         final EntityRenderer<?, ?> renderer = ViaBedrockUtility.getInstance().getPayloadHandler().getCachedPlayerRenderers().get(entity.getUuid());
         if (renderer != null) {
             cir.setReturnValue((EntityRenderer<? super T, ?>) renderer);
@@ -22,6 +26,10 @@ public abstract class EntityRenderDispatcherMixin {
 
     @Inject(method = "getRenderer", at = @At(value = "INVOKE", target = "Ljava/util/Map;get(Ljava/lang/Object;)Ljava/lang/Object;", ordinal = 2), cancellable = true)
     public <T extends Entity> void getRenderer(T entity, CallbackInfoReturnable<EntityRenderer<? super T, ?>> cir) {
+        if (!ViaBedrockUtility.getInstance().isViaBedrockPresent()) {
+            return;
+        }
+
         final EntityRenderer<?, ?> renderer = ViaBedrockUtility.getInstance().getPayloadHandler().getCachedRenderers().get(entity.getUuid());
         if (renderer != null) {
             cir.setReturnValue((EntityRenderer<? super T, ?>) renderer);

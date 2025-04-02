@@ -36,6 +36,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class PayloadHandler {
     protected final Map<UUID, EntityRenderer<?, ?>> cachedPlayerRenderers = new ConcurrentHashMap<>();
     protected final Map<UUID, EntityRenderer<?, ?>> cachedRenderers = new ConcurrentHashMap<>();
+    protected final Map<UUID, Identifier> cachedPlayerCapes = new ConcurrentHashMap<>();
     protected final Map<UUID, SkinInfo> cachedSkinInfo = new ConcurrentHashMap<>();
     protected PackManager packManager;
 
@@ -74,6 +75,8 @@ public class PayloadHandler {
             return;
         }
 
+        this.cachedPlayerCapes.put(payload.getPlayerUuid(), payload.getIdentifier());
+
         // It's ok to use this here, the reason we don't use this for player geometry because there can be fake entity.
         // But most fake entity don't have cape so we should be fine!
         final PlayerListEntry entry = client.getNetworkHandler().getPlayerListEntry(payload.getPlayerUuid());
@@ -83,7 +86,6 @@ public class PayloadHandler {
 
         final PlayerSkinBuilder builder = new PlayerSkinBuilder(entry.getSkinTextures());
         builder.capeTexture = payload.getIdentifier();
-
 
         ((PlayerSkinFieldAccessor)entry).setPlayerSkin(builder::build);
     }

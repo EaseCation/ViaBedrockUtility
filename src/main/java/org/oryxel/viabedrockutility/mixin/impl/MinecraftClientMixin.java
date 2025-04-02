@@ -19,6 +19,7 @@ public class MinecraftClientMixin {
 
         ViaBedrockUtility.getInstance().getPayloadHandler().getCachedPlayerRenderers().clear();
         ViaBedrockUtility.getInstance().getPayloadHandler().getCachedRenderers().clear();
+        ViaBedrockUtility.getInstance().getPayloadHandler().getCachedPlayerCapes().clear();
         ViaBedrockUtility.getInstance().getPayloadHandler().getCachedSkinInfo().clear();
     }
 }
