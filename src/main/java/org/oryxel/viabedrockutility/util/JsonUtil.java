@@ -8,6 +8,10 @@ import java.util.HashSet;
 import java.util.Set;
 
 public class JsonUtil {
+    public static String[] jsonArrayToStringArray(final JsonArray array) {
+        return new String[] {array.get(0).getAsString(), array.get(1).getAsString(), array.get(2).getAsString()};
+    }
+
     public static Set<String> arrayToStringSet(final JsonArray array) {
         if (array == null) {
             return Set.of();
