@@ -101,10 +101,10 @@ public class Animator {
             }
         }
 
-        queryBinding.set("anim_time", Value.of(((double)System.currentTimeMillis() - this.startMS) / 1000L));
-        queryBinding.set("life_time", Value.of(((double)System.currentTimeMillis() - this.startMS) / 1000L));
+        float animTime = (System.currentTimeMillis() - this.startMS) / 1000f;
+        queryBinding.set("anim_time", Value.of(animTime));
+        queryBinding.set("life_time", Value.of(animTime));
 
-        float animTime = ((float) System.currentTimeMillis() - this.startMS) / 1000L;
         if (animation.getAnimationLength() != -1 && animTime >= animation.getAnimationLength()) {
             System.out.println("Reset since animation length: " + animation.getAnimationLength());
             this.stop();
@@ -141,7 +141,7 @@ public class Animator {
 
     // Ehm.... shit code incoming, i guess?
     private boolean update(UpdateType type, Scope scope, ModelPart part, CubeAnimateData data, Object object) throws IOException {
-        float animTime = ((float) System.currentTimeMillis() - this.startMS) / 1000L;
+        float animTime = (System.currentTimeMillis() - this.startMS) / 1000F;
 
         final IModelPart iPart = (IModelPart) ((Object)part);
 
