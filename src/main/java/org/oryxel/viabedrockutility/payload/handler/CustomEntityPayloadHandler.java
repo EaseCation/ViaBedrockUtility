@@ -33,6 +33,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+@Getter
 public class CustomEntityPayloadHandler extends PayloadHandler {
     private final Map<UUID, Scope> cachedScopes = new ConcurrentHashMap<>();
     private static final Scope BASE_SCOPE = Scope.create();
@@ -122,7 +123,7 @@ public class CustomEntityPayloadHandler extends PayloadHandler {
                 }
 
                 final BedrockRenderController controller = this.packManager.getRenderControllerDefinitions().getRenderControllers().get(model.renderControllerIdentifier());
-                models.add(new BaseCustomEntityRenderer.Model(key, (EntityModel<?>) GeometryUtil.buildModel(geometry, false, false), texture, evalMaterial(scope, definition, controller)));
+                models.add(new BaseCustomEntityRenderer.Model(key, model.geometry(), (EntityModel<?>) GeometryUtil.buildModel(geometry, false, false), texture, evalMaterial(scope, definition, controller)));
 
                 keySet.add(key);
             }
@@ -146,7 +147,7 @@ public class CustomEntityPayloadHandler extends PayloadHandler {
                 }
 
                 final BedrockRenderController controller = this.packManager.getRenderControllerDefinitions().getRenderControllers().get(model.renderControllerIdentifier());
-                data.getRenderer().getModels().add(new BaseCustomEntityRenderer.Model(key, (EntityModel<?>) GeometryUtil.buildModel(geometry, false, false), texture, evalMaterial(scope, definition, controller)));
+                data.getRenderer().getModels().add(new BaseCustomEntityRenderer.Model(key, model.geometry(), (EntityModel<?>) GeometryUtil.buildModel(geometry, false, false), texture, evalMaterial(scope, definition, controller)));
 
                 data.availableModels.add(key);
             }

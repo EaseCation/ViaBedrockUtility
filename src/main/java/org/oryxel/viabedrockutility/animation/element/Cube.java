@@ -49,16 +49,12 @@ public final class Cube {
                 cube.setPosition(parseValueOrValue3(cubeObject.get("position")));
             }
 
-            if (cubeObject.has("position")) {
-                cube.setPosition(parseValueOrValue3(cubeObject.get("position")));
-            }
-
             if (cubeObject.has("rotation")) {
-                cube.setPosition(parseValueOrValue3(cubeObject.get("rotation")));
+                cube.setRotation(parseValueOrValue3(cubeObject.get("rotation")));
             }
 
             if (cubeObject.has("scale")) {
-                cube.setPosition(parseValueOrValue3(cubeObject.get("scale")));
+                cube.setScale(parseValueOrValue3(cubeObject.get("scale")));
             }
 
             cubes.add(cube);
@@ -71,7 +67,9 @@ public final class Cube {
         if (element.isJsonPrimitive()) {
             final JsonPrimitive primitive = element.getAsJsonPrimitive();
             if (primitive.isNumber()) {
-                return new ValueOrValue<>(primitive.getAsNumber());
+                return new ValueOrValue<>(primitive.getAsFloat());
+            } else if (primitive.isString()) {
+                return new ValueOrValue<>(primitive.getAsString());
             } else {
                 return null;
             }

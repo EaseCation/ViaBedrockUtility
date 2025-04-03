@@ -22,7 +22,7 @@ public class Animation {
     private final String identifier;
     private ValueOrValue<?> loop;
     private String startDelay = "", loopDelay = "";
-    private String timePassExpression = ""; // anim_time_update
+    private String timePassExpression = ""; // anim_time_update TODO: Implement this.
     private boolean resetBeforePlay; // override_previous_animation
     private float animationLength = -1;
     private final List<Cube> cubes = new ArrayList<>();

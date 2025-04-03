@@ -26,7 +26,7 @@ public class BaseCustomEntityRenderer<T extends Entity> extends EntityRenderer<T
     @Override
     public void render(CustomEntityRenderState state, MatrixStack matrices, VertexConsumerProvider vertexConsumers, int light) {
         for (Model model : this.models) {
-            this.onRenderModel(model);
+            this.onRenderModel(state, model);
 
             matrices.push();
 
@@ -44,7 +44,7 @@ public class BaseCustomEntityRenderer<T extends Entity> extends EntityRenderer<T
         }
     }
 
-    public void onRenderModel(final Model model) {}
+    public void onRenderModel(final CustomEntityRenderState state, final Model model) {}
 
     @Override
     public boolean shouldRender(T entity, Frustum frustum, double x, double y, double z) {
@@ -56,6 +56,8 @@ public class BaseCustomEntityRenderer<T extends Entity> extends EntityRenderer<T
     public void updateRenderState(T entity, CustomEntityRenderState state, float tickDelta) {
         super.updateRenderState(entity, state, tickDelta);
         state.yaw = entity.getYaw(tickDelta);
+        state.bodyYaw = entity.getBodyYaw();
+        state.bodyPitch = entity.getPitch();
         state.distanceTraveled = entity.distanceTraveled;
     }
 
@@ -68,11 +70,12 @@ public class BaseCustomEntityRenderer<T extends Entity> extends EntityRenderer<T
         return new CustomEntityRenderState();
     }
 
-    public record Model(String key, EntityModel<?> model, Identifier texture, Material material) {
+    public record Model(String key, String geometry, EntityModel<?> model, Identifier texture, Material material) {
     }
 
+    @Getter
     public static class CustomEntityRenderState extends EntityRenderState {
-        private float yaw;
+        private float yaw, bodyYaw, bodyPitch;
         private float distanceTraveled;
     }
 }

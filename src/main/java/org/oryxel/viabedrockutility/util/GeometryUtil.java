@@ -32,6 +32,7 @@ public final class GeometryUtil {
             };
 
             ((IModelPart)((Object)part)).viaBedrockUtility$setVBUModel();
+            ((IModelPart)((Object)part)).viaBedrockUtility$setName(bone.getName());
             ((IModelPart)((Object)part)).viaBedrockUtility$setNeededOffset(neededOffset);
             ((IModelPart)((Object)part)).viaBedrockUtility$setPivot(bone.getPivot().getX(), -bone.getPivot().getY() + 24.016F, bone.getPivot().getZ());
             ((IModelPart)((Object)part)).viaBedrockUtility$setAngles(bone.getRotation().getX() , bone.getRotation().getY(), bone.getRotation().getZ());

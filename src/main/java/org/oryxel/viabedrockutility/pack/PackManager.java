@@ -15,6 +15,7 @@ public class PackManager {
     private final EntityDefinitions entityDefinitions;
     private final ModelDefinitions modelDefinitions;
     private final MaterialDefinitions materialDefinitions;
+    private final AnimationDefinitions animationDefinitions;
 
     public PackManager(final List<Content> packs) {
         this.packs = packs;
@@ -23,6 +24,7 @@ public class PackManager {
         this.entityDefinitions = new EntityDefinitions(this);
         this.modelDefinitions = new ModelDefinitions(this);
         this.materialDefinitions = new MaterialDefinitions(this);
+        this.animationDefinitions = new AnimationDefinitions(this);
 
         TextureProcessor.process(packs);
 

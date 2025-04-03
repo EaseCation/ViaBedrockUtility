@@ -13,11 +13,11 @@
     "entity.EntityMixin",
     "entity.player.AbstractClientPlayerMixin",
     "network.ClientLoginNetworkHandlerMixin",
+    "network.ClientPlayNetworkHandlerMixin",
     "pack.ServerResourcePackLoaderMixin",
     "render.ModelPartMixin",
     "render.dispatcher.EntityRenderDispatcherMixin",
     "render.feature.CapeFeatureRendererMixin",
-    ,
     "world.ClientWorldMixin"
   ]
 }
