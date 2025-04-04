@@ -18,7 +18,7 @@ public class Animator {
     private final Scope baseScope;
     private final AnimationDefinitions.AnimationData data;
 
-    private long animationStartMS, waitingTimeMS;
+    private long animationStartMS;
 
     private boolean donePlaying, started, firstPlay;
 
@@ -30,7 +30,6 @@ public class Animator {
         this.data = data;
 
         this.animationStartMS = System.currentTimeMillis();
-        this.waitingTimeMS = System.currentTimeMillis();
         this.firstPlay = true;
     }
 
@@ -60,17 +59,14 @@ public class Animator {
         if (!this.started) {
             boolean skipThisTick = true;
 
-            float seconds = (System.currentTimeMillis() - this.waitingTimeMS) / 1000F;
+            float seconds = (System.currentTimeMillis() - this.animationStartMS) / 1000F;
             double requiredLaunchTime = MoLangEngine.eval(scope, this.firstPlay ? this.data.animation().getStartDelay() : this.data.animation().getLoopDelay()).getAsNumber();
             if (seconds >= requiredLaunchTime) {
                 skipThisTick = false;
                 this.started = true;
                 this.firstPlay = false;
 
-                if (this.data.animation().getLoop().getValue().equals(false)) {
-                    this.animationStartMS = System.currentTimeMillis();
-                }
-                this.waitingTimeMS = System.currentTimeMillis();
+                this.animationStartMS = System.currentTimeMillis();
             }
 
             if (this.started && this.data.animation().isResetBeforePlay()) {
@@ -90,7 +86,7 @@ public class Animator {
 
         AnimationHelper.animate(scope, model, data.compiled(), System.currentTimeMillis() - this.animationStartMS, 1, TEMP_VEC);
 
-        if ((System.currentTimeMillis() - this.waitingTimeMS) / 1000F >= data.compiled().lengthInSeconds()) {
+        if ((System.currentTimeMillis() - this.animationStartMS) / 1000F >= data.compiled().lengthInSeconds()) {
             System.out.println("Reset since animation length: " + data.animation().getAnimationLength());
             this.stop();
         }
@@ -102,11 +98,10 @@ public class Animator {
 
     public void stop(boolean forcefully) {
         if (this.data.animation().getLoop().getValue().equals(false) || forcefully) {
-            System.out.println("reset!");
             ((IModelPart)((Object)model.getRootPart())).viaBedrockUtility$resetEverything();
         }
 
-        this.waitingTimeMS = System.currentTimeMillis();
+        this.animationStartMS = System.currentTimeMillis();
 
         this.donePlaying = true;
         this.started = false;

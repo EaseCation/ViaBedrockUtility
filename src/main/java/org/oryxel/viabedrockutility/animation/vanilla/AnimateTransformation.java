@@ -43,7 +43,7 @@ public record AnimateTransformation(Target target, VBUKeyFrame[] keyframes) {
         public static final Target OFFSET = (part, vec3) -> ((IModelPart)((Object)part)).viaBedrockUtility$setOffset(vec3);
         public static final Target ROTATE = (part, vec3) -> ((IModelPart)((Object)part)).viaBedrockUtility$setAngles(vec3);
         public static final Target SCALE = (part, vec3) -> {
-            part.xScale = vec3.x;
+            part.xScale = -vec3.x;
             part.yScale = vec3.y;
             part.zScale = vec3.z;
         };
