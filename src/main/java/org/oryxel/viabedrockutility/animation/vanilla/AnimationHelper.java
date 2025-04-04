@@ -25,12 +25,18 @@ public class AnimationHelper {
             List<AnimateTransformation> list = entry.getValue();
             for (AnimateTransformation transformation : list) {
                 VBUKeyFrame[] lvs = transformation.keyframes();
-                if (lvs == null) {
+                int i = Math.max(0, MathHelper.binarySearch(0, lvs.length, index -> {
+                    if (lvs[index] == null) {
+                        return false;
+                    }
+
+                    return g <= lvs[index].timestamp();
+                }) - 1);
+                int j = Math.min(lvs.length - 1, i + 1);
+                if (lvs[i] == null || lvs[j] == null) {
                     continue;
                 }
 
-                int i = Math.max(0, MathHelper.binarySearch(0, lvs.length, index -> g <= lvs[index].timestamp()) - 1);
-                int j = Math.min(lvs.length - 1, i + 1);
                 VBUKeyFrame lv = lvs[i];
                 VBUKeyFrame lv2 = lvs[j];
                 float h = g - lv.timestamp();

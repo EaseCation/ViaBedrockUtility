@@ -76,6 +76,10 @@ public class AnimateBuilder {
 
     private static void build(final VBUAnimation.Builder builder, final String name, final Target target, final Object object) {
         if (object instanceof TreeMap<?, ?> rawMap) {
+            if (rawMap.isEmpty()) {
+                return;
+            }
+
             VBUKeyFrame[] frames = new VBUKeyFrame[rawMap.size()];
             final TreeMap<Float, ValueOrValue<?>> map = (TreeMap<Float, ValueOrValue<?>>) rawMap;
             final Queue<Map.Entry<Float, ValueOrValue<?>>> entries = new ConcurrentLinkedQueue<>();
@@ -113,9 +117,13 @@ public class AnimateBuilder {
                 index++;
             }
 
-            if (frames.length > 0) {
-                builder.addBoneAnimation(name, new AnimateTransformation(target, frames));
+            for (int i = 0; i < frames.length; i++) {
+                if (frames[i] == null) {
+                    frames[i] = new VBUKeyFrame(-1, new String[] {"0", "0", "0"}, AnimateTransformation.Interpolations.CUBIC);
+                }
             }
+
+            builder.addBoneAnimation(name, new AnimateTransformation(target, frames));
         } else {
             builder.addBoneAnimation(name, new AnimateTransformation(target, new VBUKeyFrame[] {new VBUKeyFrame(0, get(object), AnimateTransformation.Interpolations.CUBIC)}));
         }
