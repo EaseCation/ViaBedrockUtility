@@ -16,6 +16,7 @@ import net.minecraft.client.util.SkinTextures;
 import net.minecraft.util.Identifier;
 import org.cube.converter.model.impl.bedrock.BedrockGeometryModel;
 import org.oryxel.viabedrockutility.ViaBedrockUtility;
+import org.oryxel.viabedrockutility.entity.CustomEntityTicker;
 import org.oryxel.viabedrockutility.fabric.ViaBedrockUtilityFabric;
 import org.oryxel.viabedrockutility.mixin.impl.accessor.PlayerSkinFieldAccessor;
 import org.oryxel.viabedrockutility.pack.PackManager;
@@ -35,7 +36,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Getter
 public class PayloadHandler {
-    protected final Map<UUID, CustomEntityPayloadHandler.CustomEntityData> cachedCustomEntities = new ConcurrentHashMap<>();
+    protected final Map<UUID, CustomEntityTicker> cachedCustomEntities = new ConcurrentHashMap<>();
     protected final Map<UUID, EntityRenderer<?, ?>> cachedPlayerRenderers = new ConcurrentHashMap<>();
     protected final Map<UUID, Identifier> cachedPlayerCapes = new ConcurrentHashMap<>();
     protected final Map<UUID, SkinInfo> cachedSkinInfo = new ConcurrentHashMap<>();

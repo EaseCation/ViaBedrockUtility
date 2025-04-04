@@ -13,18 +13,13 @@ import java.util.function.ToIntFunction;
 public class ModelRequestPayload extends BasePayload {
     private final String identifier;
     private final UUID uuid;
-    private final Model[] models;
     private final EntityData entityData;
 
-    public ModelRequestPayload(String identifier, long bitmask, Integer variant, Integer mark_variant, UUID uuid, Model[] models) {
+    public ModelRequestPayload(String identifier, long bitmask, Integer variant, Integer mark_variant, UUID uuid) {
         this.identifier = identifier;
         this.uuid = uuid;
-        this.models = models;
 
         this.entityData = new EntityData(getEnumSetFromBitmask(ActorFlags.class, bitmask, ActorFlags::getValue), variant, mark_variant);
-    }
-
-    public record Model(String renderControllerIdentifier, String geometry, String texture) {
     }
 
     public record EntityData(Set<ActorFlags> flags, Integer mark_variant, Integer variant) {

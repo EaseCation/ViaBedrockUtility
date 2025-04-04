@@ -4,24 +4,28 @@ import lombok.Getter;
 import net.minecraft.client.render.*;
 import net.minecraft.client.render.entity.EntityRenderer;
 import net.minecraft.client.render.entity.EntityRendererFactory;
-import net.minecraft.client.render.entity.model.EntityModel;
 import net.minecraft.client.render.entity.state.EntityRenderState;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.Entity;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.RotationAxis;
+import org.oryxel.viabedrockutility.animation.animator.Animator;
+import org.oryxel.viabedrockutility.entity.CustomEntityTicker;
 import org.oryxel.viabedrockutility.material.data.Material;
+import org.oryxel.viabedrockutility.pack.definitions.AnimationDefinitions;
 import org.oryxel.viabedrockutility.renderer.model.CustomEntityModel;
 
 import java.util.List;
 
 @Getter
-public class BaseCustomEntityRenderer<T extends Entity> extends EntityRenderer<T, BaseCustomEntityRenderer.CustomEntityRenderState> {
+public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, CustomEntityRenderer.CustomEntityRenderState> {
+    private final CustomEntityTicker ticker;
     private final List<Model> models;
 
-    public BaseCustomEntityRenderer(final List<Model> models, EntityRendererFactory.Context context) {
+    public CustomEntityRenderer(final CustomEntityTicker ticker, final List<Model> models, EntityRendererFactory.Context context) {
         super(context);
         this.models = models;
+        this.ticker = ticker;
     }
 
     @Override
@@ -32,6 +36,7 @@ public class BaseCustomEntityRenderer<T extends Entity> extends EntityRenderer<T
             this.setupTransforms(state, matrices);
             matrices.scale(-1.0F, -1.0F, 1.0F);
             matrices.translate(0.0F, -1.501F, 0.0F);
+            this.ticker.update();
             model.model.setAngles(state);
 
             RenderLayer renderLayer = model.material.info().getVariants().get("skinning_color").build().apply(model.texture);
@@ -75,5 +80,17 @@ public class BaseCustomEntityRenderer<T extends Entity> extends EntityRenderer<T
     public static class CustomEntityRenderState extends EntityRenderState {
         private float yaw, bodyYaw, bodyPitch;
         private float distanceTraveled;
+    }
+
+    public void reset() {
+        this.getModels().forEach(m -> m.model().reset());
+    }
+
+    public void play(final AnimationDefinitions.AnimationData data) {
+        if (data == null) {
+            return;
+        }
+
+        this.getModels().forEach(model -> model.model().play(data.animation().getIdentifier(), new Animator(model.model(), data)));
     }
 }

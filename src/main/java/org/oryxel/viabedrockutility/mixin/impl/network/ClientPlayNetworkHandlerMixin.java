@@ -6,6 +6,7 @@ import net.minecraft.client.network.ClientPlayNetworkHandler;
 import net.minecraft.util.hit.EntityHitResult;
 import net.minecraft.util.hit.HitResult;
 import org.oryxel.viabedrockutility.ViaBedrockUtility;
+import org.oryxel.viabedrockutility.entity.CustomEntityTicker;
 import org.oryxel.viabedrockutility.payload.handler.CustomEntityPayloadHandler;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -50,11 +51,11 @@ public class ClientPlayNetworkHandlerMixin {
             return;
         }
 
-        CustomEntityPayloadHandler.CustomEntityData cache = ViaBedrockUtility.getInstance().getPayloadHandler().getCachedCustomEntities().get(uuid);
+        CustomEntityTicker cache = ViaBedrockUtility.getInstance().getPayloadHandler().getCachedCustomEntities().get(uuid);
         if (split[0].equals("reset")) {
             cache.getRenderer().reset();
         } else if (split[0].equals("test") && split.length == 3) {
-            cache.getRenderer().play(uuid, split[1], ViaBedrockUtility.getInstance().getPackManager().getAnimationDefinitions().getAnimations().get(split[2]));
+            cache.getRenderer().play(ViaBedrockUtility.getInstance().getPackManager().getAnimationDefinitions().getAnimations().get(split[2]));
         }
     }
 }

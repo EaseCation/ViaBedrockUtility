@@ -1,12 +1,13 @@
 package org.oryxel.viabedrockutility.animation.animator;
 
+import lombok.Setter;
 import net.minecraft.client.model.Model;
 import org.joml.Vector3f;
 import org.oryxel.viabedrockutility.animation.vanilla.AnimationHelper;
 import org.oryxel.viabedrockutility.mixin.interfaces.IModelPart;
 import org.oryxel.viabedrockutility.mocha.MoLangEngine;
 import org.oryxel.viabedrockutility.pack.definitions.AnimationDefinitions;
-import org.oryxel.viabedrockutility.renderer.BaseCustomEntityRenderer;
+import org.oryxel.viabedrockutility.renderer.CustomEntityRenderer;
 import team.unnamed.mocha.runtime.Scope;
 import team.unnamed.mocha.runtime.value.MutableObjectBinding;
 import team.unnamed.mocha.runtime.value.Value;
@@ -15,7 +16,6 @@ import java.io.IOException;
 
 public class Animator {
     private final Model model;
-    private final Scope baseScope;
     private final AnimationDefinitions.AnimationData data;
 
     private long animationStartMS;
@@ -24,16 +24,18 @@ public class Animator {
 
     private final Vector3f TEMP_VEC = new Vector3f();
 
-    public Animator(Model model, Scope baseScope, AnimationDefinitions.AnimationData data) {
+    @Setter
+    private Scope baseScope;
+
+    public Animator(Model model, AnimationDefinitions.AnimationData data) {
         this.model = model;
-        this.baseScope = baseScope;
         this.data = data;
 
         this.animationStartMS = System.currentTimeMillis();
         this.firstPlay = true;
     }
 
-    public void animate(BaseCustomEntityRenderer.CustomEntityRenderState state) throws IOException {
+    public void animate(CustomEntityRenderer.CustomEntityRenderState state) throws IOException {
         if (this.donePlaying) {
             if (this.data.animation().getLoop().getValue().equals(true)) {
                 this.donePlaying = false;
@@ -42,7 +44,7 @@ public class Animator {
             }
         }
 
-        final Scope scope = baseScope.copy();
+        final Scope scope = this.baseScope.copy();
 
         final MutableObjectBinding queryBinding = new MutableObjectBinding();
         queryBinding.setAllFrom((MutableObjectBinding) this.baseScope.get("query"));
