@@ -73,7 +73,7 @@ public abstract class ModelPartMixin implements IModelPart {
             return;
         }
 
-        // Well don't ask me why left/right arm act weirdly, the position and origin being different from the hardcoded one I think.
+        // Have to do this because of how well minecraft pivot point and bedrock pivot point system works.
         matrices.translate(-this.originX / 16.0F, 0, -this.originZ / 16.0F);
     }
 

@@ -2,12 +2,12 @@ package org.oryxel.viabedrockutility.util;
 
 import com.google.common.collect.Maps;
 import net.minecraft.client.model.*;
-import net.minecraft.client.render.entity.model.EntityModel;
 import net.minecraft.client.render.entity.model.PlayerEntityModel;
 import net.minecraft.util.math.Direction;
 import org.cube.converter.model.element.Cube;
 import org.cube.converter.model.element.Parent;
 import org.cube.converter.model.impl.bedrock.BedrockGeometryModel;
+import org.cube.converter.util.element.Position3V;
 import org.cube.converter.util.element.UVMap;
 import org.joml.Vector3f;
 import org.oryxel.viabedrockutility.mixin.interfaces.IModelPart;
@@ -16,6 +16,8 @@ import org.oryxel.viabedrockutility.renderer.model.CustomEntityModel;
 import java.util.*;
 
 public final class GeometryUtil {
+    private static final List<String> LEG_RELATED = List.of("leftleg", "rightleg", "rightpants", "leftpants");
+
     public static Model buildModel(final BedrockGeometryModel geometry, final boolean player, boolean slim) {
         // There are some times when the skin image file is larger than the geometry UV points.
         // In this case, we need to scale UV calls
@@ -29,18 +31,27 @@ public final class GeometryUtil {
             final ModelPart part = new ModelPart(List.of(), children);
 
             boolean neededOffset = switch (bone.getName().toLowerCase(Locale.ROOT)) {
-                case "rightarm", "leftarm", "leftleg", "rightleg" -> player;
+                case "rightarm", "leftarm" -> player;
                 default -> false;
             };
 
             ((IModelPart)((Object)part)).viaBedrockUtility$setVBUModel();
             ((IModelPart)((Object)part)).viaBedrockUtility$setName(bone.getName());
             ((IModelPart)((Object)part)).viaBedrockUtility$setNeededOffset(neededOffset);
-            ((IModelPart)((Object)part)).viaBedrockUtility$setPivot(new Vector3f(bone.getPivot().getX(), -bone.getPivot().getY() + 24.016F, bone.getPivot().getZ()));
             ((IModelPart)((Object)part)).viaBedrockUtility$setAngles(new Vector3f(bone.getRotation().getX() , bone.getRotation().getY(), bone.getRotation().getZ()));
+
+            boolean isLeg = player && LEG_RELATED.contains(bone.getName().toLowerCase(Locale.ROOT));
+            if (isLeg) {
+                part.setOrigin(0, bone.getPivot().getY(), 0);
+                part.setDefaultTransform(part.getTransform());
+            } else {
+                ((IModelPart)((Object)part)).viaBedrockUtility$setPivot(new Vector3f(bone.getPivot().getX(), -bone.getPivot().getY() + 24.016F, bone.getPivot().getZ()));
+            }
 
             // Java don't allow individual cubes to have their own rotation therefore, we have to separate each cube into ModelPart to be able to rotate.
             for (final Cube cube : bone.getCubes().values()) {
+                final Position3V pos = cube.getPosition();
+
                 final float sizeX = cube.getSize().getX(), sizeY = cube.getSize().getY(), sizeZ = cube.getSize().getZ();
                 final float inflate = cube.getInflate();
 
@@ -53,8 +64,7 @@ public final class GeometryUtil {
                     }
                 }
 
-                // Y have to be flipped for whatever reason, also have to offset down by 1.501 block (which is 24.016 in model size)?
-                final ModelPart.Cuboid cuboid = new ModelPart.Cuboid(0, 0, cube.getPosition().getX(), -(cube.getPosition().getY() - 24.016F + sizeY), cube.getPosition().getZ(), sizeX, sizeY, sizeZ, inflate, inflate, inflate, cube.isMirror(), uvWidth, uvHeight, set);
+                final ModelPart.Cuboid cuboid = new ModelPart.Cuboid(0, 0, pos.getX(), isLeg ? pos.getY() : -(pos.getY() - 24.016F + sizeY), pos.getZ(), sizeX, sizeY, sizeZ, inflate, inflate, inflate, cube.isMirror(), uvWidth, uvHeight, set);
                 correctUv(cuboid, set, uvMap, uvWidth, uvHeight, cube.getInflate(), cube.isMirror());
 
                 final ModelPart cubePart = new ModelPart(List.of(cuboid), Map.of());
@@ -62,6 +72,7 @@ public final class GeometryUtil {
                 ((IModelPart)((Object)cubePart)).viaBedrockUtility$setAngles(new Vector3f(cube.getRotation().getX(), cube.getRotation().getY(), cube.getRotation().getZ()));
                 ((IModelPart)((Object)cubePart)).viaBedrockUtility$setVBUModel();
                 ((IModelPart)((Object)cubePart)).viaBedrockUtility$setNeededOffset(neededOffset);
+                ((IModelPart)((Object)cubePart)).viaBedrockUtility$setName(bone.getName());
                 children.put(cube.getParent() + cube.hashCode(), cubePart);
             }
 
