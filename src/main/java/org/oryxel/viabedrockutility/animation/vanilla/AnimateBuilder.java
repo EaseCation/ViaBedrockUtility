@@ -113,7 +113,9 @@ public class AnimateBuilder {
                 index++;
             }
 
-            builder.addBoneAnimation(name, new AnimateTransformation(target, frames));
+            if (frames.length > 0) {
+                builder.addBoneAnimation(name, new AnimateTransformation(target, frames));
+            }
         } else {
             builder.addBoneAnimation(name, new AnimateTransformation(target, new VBUKeyFrame[] {new VBUKeyFrame(0, get(object), AnimateTransformation.Interpolations.CUBIC)}));
         }
