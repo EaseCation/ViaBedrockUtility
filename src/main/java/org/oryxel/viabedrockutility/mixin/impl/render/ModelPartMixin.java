@@ -73,7 +73,7 @@ public abstract class ModelPartMixin implements IModelPart {
             return;
         }
 
-        // Have to do this because of how well minecraft pivot point and bedrock pivot point system works.
+        // Have to do this because of how java pivot point and bedrock pivot point system works, I think? ehhh whatever it works, just don't touch it.
         matrices.translate(-this.originX / 16.0F, 0, -this.originZ / 16.0F);
     }
 

@@ -84,7 +84,7 @@ public final class GeometryUtil {
                 }
             }
 
-            stringToPart.put(adjustFormatting(name), new PartInfo(adjustFormatting(parent), part, children));
+            stringToPart.put(adjustFormatting(player, name), new PartInfo(adjustFormatting(player, parent), part, children));
         }
 
         PartInfo root = stringToPart.get("root");
@@ -111,7 +111,11 @@ public final class GeometryUtil {
         return player ? new PlayerEntityModel(root.part(), slim) : new CustomEntityModel<>(root.part());
     }
 
-    private static String adjustFormatting(String name) {
+    private static String adjustFormatting(boolean player, String name) {
+        if (!player) {
+            return name;
+        }
+
         if (name == null) {
             return null;
         }
