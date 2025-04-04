@@ -71,6 +71,10 @@ public class AnimateBuilder {
             }
         }
 
+        if (animation.getLoop().getValue().equals(true)) {
+            builder.looping();
+        }
+
         return builder.build();
     }
 
@@ -117,13 +121,29 @@ public class AnimateBuilder {
                 index++;
             }
 
-            for (int i = 0; i < frames.length; i++) {
-                if (frames[i] == null) {
-                    frames[i] = new VBUKeyFrame(-1, new String[] {"0", "0", "0"}, AnimateTransformation.Interpolations.CUBIC);
+            // In case if any frames is null for whatever reason, which does happen.
+            int availableFrames = rawMap.size();
+            for (VBUKeyFrame frame : frames) {
+                if (frame == null) {
+                    availableFrames--;
                 }
             }
 
-            builder.addBoneAnimation(name, new AnimateTransformation(target, frames));
+            if (availableFrames < 1) {
+                return;
+            }
+
+            VBUKeyFrame[] newFrames = new VBUKeyFrame[availableFrames];
+
+            int n = 0;
+            for (VBUKeyFrame oldFrame : frames) {
+                if (oldFrame != null) {
+                    newFrames[n] = oldFrame;
+                    n++;
+                }
+            }
+
+            builder.addBoneAnimation(name, new AnimateTransformation(target, newFrames));
         } else {
             builder.addBoneAnimation(name, new AnimateTransformation(target, new VBUKeyFrame[] {new VBUKeyFrame(0, get(object), AnimateTransformation.Interpolations.CUBIC)}));
         }

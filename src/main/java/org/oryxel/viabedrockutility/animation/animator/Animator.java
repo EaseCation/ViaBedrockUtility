@@ -87,7 +87,7 @@ public class Animator {
         AnimationHelper.animate(scope, model, data.compiled(), System.currentTimeMillis() - this.animationStartMS, 1, TEMP_VEC);
 
         if ((System.currentTimeMillis() - this.animationStartMS) / 1000F >= data.compiled().lengthInSeconds()) {
-            System.out.println("Reset since animation length: " + data.animation().getAnimationLength());
+            System.out.println("Reset since animation length: " + data.compiled().lengthInSeconds());
             this.stop();
         }
     }
