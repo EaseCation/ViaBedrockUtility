@@ -7,13 +7,15 @@ import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.network.packet.CustomPayload;
 import net.minecraft.util.Identifier;
 import org.oryxel.viabedrockutility.ViaBedrockUtility;
+import org.oryxel.viabedrockutility.enums.bedrock.ActorFlags;
 import org.oryxel.viabedrockutility.fabric.ViaBedrockUtilityFabric;
 import org.oryxel.viabedrockutility.payload.enums.PayloadType;
 import org.oryxel.viabedrockutility.payload.impl.entity.*;
 import org.oryxel.viabedrockutility.payload.impl.skin.*;
+import org.oryxel.viabedrockutility.util.EnumUtil;
 
+import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
-import java.util.UUID;
 
 @RequiredArgsConstructor
 @Getter
@@ -34,7 +36,14 @@ public class BasePayload implements CustomPayload {
             }
             case MODEL_REQUEST -> {
                 final String identifier = readString(buf);
-                final long bitmask = buf.readLong();
+
+                BigInteger combinedFlags = BigInteger.ZERO;
+                if (buf.readBoolean()) {
+                    combinedFlags = combinedFlags.add(BigInteger.valueOf(buf.readLong()));
+                }
+                if (buf.readBoolean()) {
+                    combinedFlags = combinedFlags.add(BigInteger.valueOf(buf.readLong()).shiftLeft(64));
+                }
 
                 Integer variant = null, mark_variant = null;
                 if (buf.readBoolean()) {
@@ -44,7 +53,7 @@ public class BasePayload implements CustomPayload {
                     mark_variant = buf.readInt();
                 }
 
-                return new ModelRequestPayload(identifier, bitmask, variant, mark_variant, buf.readUuid());
+                return new ModelRequestPayload(identifier, EnumUtil.getEnumSetFromBitmask(ActorFlags.class, combinedFlags, ActorFlags::getValue), variant, mark_variant, buf.readUuid());
             }
 
             case ANIMATE -> {
