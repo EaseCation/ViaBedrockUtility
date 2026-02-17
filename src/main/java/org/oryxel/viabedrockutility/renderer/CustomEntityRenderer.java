@@ -54,8 +54,12 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
     private int renderLogCounter = 0;
     @Override
     public void render(CustomEntityRenderState state, MatrixStack matrices, OrderedRenderCommandQueue queue, CameraRenderState cameraState) {
-        if (renderLogCounter++ % 100 == 0) {
-            ViaBedrockUtilityFabric.LOGGER.info("[Render] CustomEntityRenderer.render() called, models={}, animators={}", this.models.size(), this.animators.size());
+        if (renderLogCounter++ % 200 == 0) {
+            StringBuilder sb = new StringBuilder();
+            for (Model m : this.models) {
+                sb.append(m.key()).append("(mat=").append(m.material().identifier()).append(") ");
+            }
+            ViaBedrockUtilityFabric.LOGGER.info("[Render] render() models={} animators={} keys=[{}]", this.models.size(), this.animators.size(), sb.toString().trim());
         }
         float s = (this.ticker.getScale() != null) ? this.ticker.getScale() : 1.0F;
         for (Model model : this.models) {
@@ -239,6 +243,8 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
     }
 
     private void applyPartVisibility(CustomEntityModel<?> entityModel, Map<String, String> pv, Scope scope) {
+        final List<ModelPart> allParts = entityModel.getParts();
+
         // Determine default visibility from wildcard rule
         boolean defaultVisible = true;
         final String defaultRule = pv.get("*");
@@ -246,22 +252,49 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
             defaultVisible = evalVisibility(defaultRule, scope);
         }
 
-        // Set default visibility for all bones
-        for (ModelPart part : entityModel.getParts()) {
+        // Set default visibility for all parts
+        for (ModelPart part : allParts) {
             part.visible = defaultVisible;
         }
 
-        // Override specific bones
+        // Override specific bones — set ALL parts with matching name (no break)
+        // In VBU's model hierarchy, each bone produces both a bone ModelPart and
+        // a cube wrapper ModelPart sharing the same name; both must be updated.
         for (Map.Entry<String, String> entry : pv.entrySet()) {
             if ("*".equals(entry.getKey())) continue;
-            for (ModelPart part : entityModel.getParts()) {
+            boolean vis = evalVisibility(entry.getValue(), scope);
+            for (ModelPart part : allParts) {
                 final String name = ((IModelPart) ((Object) part)).viaBedrockUtility$getName();
                 if (name.equals(entry.getKey())) {
-                    part.visible = evalVisibility(entry.getValue(), scope);
-                    break;
+                    part.visible = vis;
                 }
             }
         }
+
+        // Post-pass: ensure ancestors of visible parts are also visible.
+        // Java MC's ModelPart.visible is hierarchical — if a parent is invisible,
+        // all children are hidden too. Bedrock's part_visibility only controls
+        // per-bone cuboid rendering without affecting children. This bottom-up
+        // pass bridges the semantic difference.
+        ensureAncestorsVisible(entityModel.getRootPart());
+    }
+
+    /**
+     * Bottom-up recursive pass: if any descendant has visible=true,
+     * this part must also be visible=true to allow rendering traversal
+     * to reach the visible descendant.
+     */
+    private boolean ensureAncestorsVisible(ModelPart part) {
+        boolean anyChildVisible = false;
+        for (ModelPart child : ((IModelPart) ((Object) part)).viaBedrockUtility$getChildren().values()) {
+            if (ensureAncestorsVisible(child)) {
+                anyChildVisible = true;
+            }
+        }
+        if (anyChildVisible) {
+            part.visible = true;
+        }
+        return part.visible;
     }
 
     private boolean evalVisibility(String expression, Scope scope) {

@@ -32,7 +32,10 @@ public class CustomEntityPayloadHandler extends PayloadHandler {
             return;
         }
 
-        ViaBedrockUtilityFabric.LOGGER.info("[Entity] MODEL_REQUEST for '{}' (uuid={})", payload.getIdentifier(), payload.getUuid());
+        ViaBedrockUtilityFabric.LOGGER.info("[Entity] MODEL_REQUEST for '{}' (uuid={}) skinId={} variant={} markVariant={} scale={}",
+            payload.getIdentifier(), payload.getUuid(),
+            payload.getEntityData().skinId(), payload.getEntityData().variant(),
+            payload.getEntityData().mark_variant(), payload.getEntityData().scale());
         final EntityDefinitions.EntityDefinition definition = this.packManager.getEntityDefinitions().getEntities().get(payload.getIdentifier());
 
         CustomEntityTicker ticker = this.cachedCustomEntities.get(payload.getUuid());

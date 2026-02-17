@@ -139,6 +139,11 @@ public abstract class ModelPartMixin implements IModelPart {
     }
 
     @Override
+    public Map<String, ModelPart> viaBedrockUtility$getChildren() {
+        return this.children;
+    }
+
+    @Override
     public void viaBedrockUtility$setAngles(Vector3f vec3) {
         if (!this.alreadySetRotation) {
             this.defaultRotation = new Vector3f(vec3.x, vec3.y, vec3.z);
