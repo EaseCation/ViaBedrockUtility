@@ -32,6 +32,7 @@ public class BasePayload implements CustomPayload {
             case CONFIRM -> {
                 // Confirm that ViaBedrock is present, this should be sent back right after we send confirm register channel.
                 ViaBedrockUtility.getInstance().setViaBedrockPresent(true);
+                ViaBedrockUtilityFabric.LOGGER.info("[Handshake] Received CONFIRM from ViaBedrock, handshake successful!");
                 return new BasePayload();
             }
             case MODEL_REQUEST -> {

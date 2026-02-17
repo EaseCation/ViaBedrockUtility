@@ -1,7 +1,16 @@
 package org.oryxel.viabedrockutility.renderer;
 
 import lombok.Getter;
+import lombok.Setter;
 import net.minecraft.client.render.*;
+//? if >=1.21.9 {
+import net.minecraft.client.render.command.OrderedRenderCommandQueue;
+import net.minecraft.client.render.command.RenderCommandQueue;
+import net.minecraft.client.render.state.CameraRenderState;
+//?} else {
+/*import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.render.VertexConsumer;
+*///?}
 import net.minecraft.client.render.entity.EntityRenderer;
 import net.minecraft.client.render.entity.EntityRendererFactory;
 import net.minecraft.client.render.entity.state.EntityRenderState;
@@ -11,6 +20,7 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.RotationAxis;
 import org.oryxel.viabedrockutility.animation.animator.Animator;
 import org.oryxel.viabedrockutility.entity.CustomEntityTicker;
+import org.oryxel.viabedrockutility.fabric.ViaBedrockUtilityFabric;
 import org.oryxel.viabedrockutility.material.data.Material;
 import org.oryxel.viabedrockutility.pack.definitions.AnimationDefinitions;
 import org.oryxel.viabedrockutility.renderer.model.CustomEntityModel;
@@ -33,7 +43,46 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
         this.ticker = ticker;
     }
 
+    //? if >=1.21.9 {
+    private int renderLogCounter = 0;
     @Override
+    public void render(CustomEntityRenderState state, MatrixStack matrices, OrderedRenderCommandQueue queue, CameraRenderState cameraState) {
+        if (renderLogCounter++ % 100 == 0) {
+            ViaBedrockUtilityFabric.LOGGER.info("[Render] CustomEntityRenderer.render() called, models={}, animators={}", this.models.size(), this.animators.size());
+        }
+        for (Model model : this.models) {
+            matrices.push();
+
+            this.setupTransforms(state, matrices);
+            matrices.scale(-1.0F, -1.0F, 1.0F);
+            matrices.translate(0.0F, -1.501F, 0.0F);
+            this.animators.values().forEach(animator -> {
+                try {
+                    animator.animate(model.model(), state);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            });
+
+            try {
+                RenderLayer renderLayer = model.material.info().getVariants().get("skinning_color").build().apply(model.texture);
+                if (renderLayer != null) {
+                    RenderCommandQueue batchQueue = queue.getBatchingQueue(0);
+                    batchQueue.submitModelPart(model.model.getRootPart(), matrices, renderLayer, state.light, OverlayTexture.packUv(0, 10), null);
+                } else if (renderLogCounter % 100 == 1) {
+                    ViaBedrockUtilityFabric.LOGGER.warn("[Render] RenderLayer is null for model key={}, texture={}", model.key(), model.texture());
+                }
+            } catch (Exception e) {
+                if (renderLogCounter % 100 == 1) {
+                    ViaBedrockUtilityFabric.LOGGER.error("[Render] Error rendering model key={}, texture={}", model.key(), model.texture(), e);
+                }
+            }
+
+            matrices.pop();
+        }
+    }
+    //?} else {
+    /*@Override
     public void render(CustomEntityRenderState state, MatrixStack matrices, VertexConsumerProvider vertexConsumers, int light) {
         for (Model model : this.models) {
             matrices.push();
@@ -58,6 +107,7 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
             matrices.pop();
         }
     }
+    *///?}
 
     @Override
     public boolean shouldRender(T entity, Frustum frustum, double x, double y, double z) {
@@ -68,6 +118,7 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
     @Override
     public void updateRenderState(T entity, CustomEntityRenderState state, float tickDelta) {
         super.updateRenderState(entity, state, tickDelta);
+        state.setCustomRenderer(this);
         state.yaw = entity.getYaw(tickDelta);
         state.bodyYaw = entity.getBodyYaw();
         state.bodyPitch = entity.getPitch();
@@ -90,6 +141,8 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
     public static class CustomEntityRenderState extends EntityRenderState {
         private float yaw, bodyYaw, bodyPitch;
         private float distanceTraveled;
+        @Setter
+        private CustomEntityRenderer<?> customRenderer;
     }
 
     public void reset() {

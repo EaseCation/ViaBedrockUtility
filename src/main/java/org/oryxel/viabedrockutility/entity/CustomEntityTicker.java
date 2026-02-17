@@ -59,9 +59,17 @@ public class CustomEntityTicker {
 
     public CustomEntityTicker(final EntityDefinitions.EntityDefinition entityDefinition) {
         final MinecraftClient client = MinecraftClient.getInstance();
+        //? if >=1.21.9 {
         final EntityRendererFactory.Context context = new EntityRendererFactory.Context(client.getEntityRenderDispatcher(),
                 client.getItemModelManager(), client.getMapRenderer(), client.getBlockRenderManager(),
-                client.getResourceManager(), client.getLoadedEntityModels(), new EquipmentModelLoader(), client.textRenderer);
+                client.getResourceManager(), client.getLoadedEntityModels(), new EquipmentModelLoader(),
+                client.getAtlasManager(), client.textRenderer, client.getPlayerSkinCache());
+        //?} else {
+        /*final EntityRendererFactory.Context context = new EntityRendererFactory.Context(client.getEntityRenderDispatcher(),
+                client.getItemModelManager(), client.getMapRenderer(), client.getBlockRenderManager(),
+                client.getResourceManager(), client.getLoadedEntityModels(), new EquipmentModelLoader(),
+                client.textRenderer);
+        *///?}
         this.renderer = new CustomEntityRenderer<>(this, new CopyOnWriteArrayList<>(), context);
 
         this.entityDefinition = entityDefinition;
@@ -151,10 +159,12 @@ public class CustomEntityTicker {
         executionScope.set("q", queryBinding);
 
         if (!evaluateRenderControllerChange(executionScope)) {
+            ViaBedrockUtilityFabric.LOGGER.debug("[Entity] update(): no render controller change, models={}", this.renderer.getModels().size());
             this.renderer.getAnimators().values().forEach(animator -> animator.setBaseScope(executionScope.copy()));
             return;
         }
 
+        ViaBedrockUtilityFabric.LOGGER.info("[Entity] update(): render controller changed, evaluatedModels={}", this.models.size());
         final Set<String> old = new HashSet<>(this.availableModels);
         this.availableModels.clear();
         for (EvaluatedModel model : this.models) {
@@ -162,6 +172,7 @@ public class CustomEntityTicker {
 
             BedrockGeometryModel geometry = this.packManager.getModelDefinitions().getEntityModels().get(model.geometryValue());
             if (geometry == null) {
+                ViaBedrockUtilityFabric.LOGGER.warn("[Entity] update(): geometry '{}' not found in packManager", model.geometryValue());
                 continue;
             }
 
@@ -176,6 +187,7 @@ public class CustomEntityTicker {
             this.availableModels.add(model.key());
         }
         this.renderer.getModels().removeIf(model -> !this.availableModels.contains(model.key()));
+        ViaBedrockUtilityFabric.LOGGER.info("[Entity] update(): final renderer models={}", this.renderer.getModels().size());
 
         if (!this.hasPlayInitAnimation) {
             this.entityDefinition.entityData().getScripts().animates().forEach(animate -> {

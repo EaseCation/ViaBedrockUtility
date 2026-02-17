@@ -2,6 +2,7 @@ package org.oryxel.viabedrockutility.payload.handler;
 
 import lombok.Getter;
 import org.oryxel.viabedrockutility.entity.CustomEntityTicker;
+import org.oryxel.viabedrockutility.fabric.ViaBedrockUtilityFabric;
 import org.oryxel.viabedrockutility.material.VanillaMaterials;
 import org.oryxel.viabedrockutility.material.data.Material;
 import org.oryxel.viabedrockutility.pack.definitions.EntityDefinitions;
@@ -27,13 +28,16 @@ public class CustomEntityPayloadHandler extends PayloadHandler {
     @Override
     public void handle(ModelRequestPayload payload) {
         if (!this.packManager.getEntityDefinitions().getEntities().containsKey(payload.getIdentifier())) {
+            ViaBedrockUtilityFabric.LOGGER.warn("[Entity] MODEL_REQUEST for unknown entity '{}' (uuid={}), skipping", payload.getIdentifier(), payload.getUuid());
             return;
         }
 
+        ViaBedrockUtilityFabric.LOGGER.info("[Entity] MODEL_REQUEST for '{}' (uuid={})", payload.getIdentifier(), payload.getUuid());
         final EntityDefinitions.EntityDefinition definition = this.packManager.getEntityDefinitions().getEntities().get(payload.getIdentifier());
 
         CustomEntityTicker ticker = this.cachedCustomEntities.get(payload.getUuid());
         if (ticker == null) {
+            ViaBedrockUtilityFabric.LOGGER.info("[Entity] Creating new CustomEntityTicker for '{}' (uuid={})", payload.getIdentifier(), payload.getUuid());
             ticker = new CustomEntityTicker(definition);
             this.cachedCustomEntities.put(payload.getUuid(), ticker);
         }

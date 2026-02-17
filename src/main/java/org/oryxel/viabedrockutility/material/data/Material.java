@@ -16,14 +16,18 @@ import lombok.Setter;
 import lombok.ToString;
 import net.minecraft.client.render.*;
 import net.minecraft.util.Identifier;
-import net.minecraft.util.TriState;
 import net.minecraft.util.Util;
 
 import java.util.*;
 import java.util.function.Function;
 
 import static net.minecraft.client.gl.RenderPipelines.ENTITY_SNIPPET;
-import static net.minecraft.client.render.RenderPhase.*;
+//? if <1.21.11 {
+/*import static net.minecraft.client.render.RenderPhase.*;
+*///?}
+//? if <1.21.6 {
+/*import net.minecraft.util.TriState;
+*///?}
 import static org.oryxel.viabedrockutility.util.JsonUtil.*;
 
 // https://wiki.bedrock.dev/visuals/materials
@@ -251,7 +255,7 @@ public record Material(String identifier, String baseIdentifier, MaterialInfo in
                 builder.withLocation(Identifier.of("viabedrockutility", "pipeline/" + UUID.randomUUID() + this.hashCode()));
                 builder.withBlend(blend);
 
-                builder.withVertexFormat(vertexFormat, this.defines.contains("LINE_STRIP") ? VertexFormat.DrawMode.LINE_STRIP : VertexFormat.DrawMode.QUADS);
+                builder.withVertexFormat(vertexFormat, VertexFormat.DrawMode.QUADS);
 
                 // Totally possible, but not now.
 //                if (!this.fragmentShader.isBlank()) {
@@ -279,14 +283,36 @@ public record Material(String identifier, String baseIdentifier, MaterialInfo in
                     builder.withShaderDefine("EMISSIVE");
                 }
 
-                final RenderLayer.MultiPhaseParameters.Builder renderLayerBuilder = RenderLayer.MultiPhaseParameters.builder();
+                //? if >=1.21.11 {
+                RenderSetup.Builder setupBuilder = RenderSetup.builder(builder.build());
+                setupBuilder.expectedBufferSize(1536);
+                setupBuilder.crumbling();
+                setupBuilder.translucent();
+
                 if (!this.defines.contains("NO_TEXTURE")) {
-                    renderLayerBuilder.texture(new Texture(texture, TriState.FALSE, false));
+                    setupBuilder.texture("Sampler0", texture);
                 }
 
-                renderLayerBuilder.lightmap(ENABLE_LIGHTMAP);
-                renderLayerBuilder.overlay(ENABLE_OVERLAY_COLOR);
-                return RenderLayer.of("custom", 1536, true, true, builder.build(), renderLayerBuilder.build(false));
+                setupBuilder.useLightmap();
+                setupBuilder.useOverlay();
+                return RenderLayer.of("custom", setupBuilder.build());
+                //?} else if >=1.21.6 {
+                /*RenderLayer.MultiPhaseParameters.Builder paramsBuilder = RenderLayer.MultiPhaseParameters.builder();
+                if (!this.defines.contains("NO_TEXTURE")) {
+                    paramsBuilder.texture(new Texture(texture, false));
+                }
+                paramsBuilder.lightmap(ENABLE_LIGHTMAP);
+                paramsBuilder.overlay(ENABLE_OVERLAY_COLOR);
+                return RenderLayer.of("custom", 1536, true, true, builder.build(), paramsBuilder.build(false));
+                *///?} else {
+                /*RenderLayer.MultiPhaseParameters.Builder paramsBuilder = RenderLayer.MultiPhaseParameters.builder();
+                if (!this.defines.contains("NO_TEXTURE")) {
+                    paramsBuilder.texture(new Texture(texture, TriState.FALSE, false));
+                }
+                paramsBuilder.lightmap(ENABLE_LIGHTMAP);
+                paramsBuilder.overlay(ENABLE_OVERLAY_COLOR);
+                return RenderLayer.of("custom", 1536, true, true, builder.build(), paramsBuilder.build(false));
+                *///?}
             }));
 
         }

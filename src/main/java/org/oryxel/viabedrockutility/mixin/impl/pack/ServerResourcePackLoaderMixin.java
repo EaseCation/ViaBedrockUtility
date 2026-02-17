@@ -25,18 +25,23 @@ public class ServerResourcePackLoaderMixin {
             return;
         }
 
+        ViaBedrockUtilityFabric.LOGGER.info("[ResourcePack] Intercepting server resource packs, {} pack(s) received", packs.size());
         final List<Content> contents = new ArrayList<>();
         packs.stream().map(ReloadScheduler.PackInfo::path).forEach(pack -> {
             try {
                 final Content content = new Content(Files.readAllBytes(pack));
-                for (final String path : content.getFilesDeep("bedrock/", ".mcpack")) {
+                final List<String> mcpacks = content.getFilesDeep("bedrock/", ".mcpack");
+                ViaBedrockUtilityFabric.LOGGER.info("[ResourcePack] Found {} bedrock mcpack(s) in {}", mcpacks.size(), pack.getFileName());
+                for (final String path : mcpacks) {
+                    ViaBedrockUtilityFabric.LOGGER.info("[ResourcePack]   - {}", path);
                     contents.add(new Content(content.get(path)));
                 }
             } catch (IOException e) {
-                ViaBedrockUtilityFabric.LOGGER.warn("Failed to read pack {}", pack);
+                ViaBedrockUtilityFabric.LOGGER.warn("[ResourcePack] Failed to read pack {}", pack);
             }
         });
 
+        ViaBedrockUtilityFabric.LOGGER.info("[ResourcePack] Loaded {} bedrock pack(s) total, initializing PackManager", contents.size());
         ViaBedrockUtility.getInstance().setPackManager(new PackManager(contents));
     }
 }

@@ -17,7 +17,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Stream;
+//? if <1.21.6 {
+/*import java.util.stream.Stream;
+*///?}
 
 @Mixin(ModelPart.class)
 public abstract class ModelPartMixin implements IModelPart {
@@ -26,7 +28,11 @@ public abstract class ModelPartMixin implements IModelPart {
 
     @Shadow @Final private Map<String, ModelPart> children;
 
-    @Shadow public abstract Stream<ModelPart> traverse();
+    //? if >=1.21.6 {
+    @Shadow public abstract List<ModelPart> traverse();
+    //?} else {
+    /*@Shadow public abstract Stream<ModelPart> traverse();
+    *///?}
 
     @Shadow public float xScale;
     @Shadow public float yScale;
@@ -111,7 +117,11 @@ public abstract class ModelPartMixin implements IModelPart {
 
     @Override
     public void viaBedrockUtility$resetEverything() {
-        this.traverse().toList().forEach(part -> {
+        //? if >=1.21.6 {
+        this.traverse().forEach(part -> {
+        //?} else {
+        /*this.traverse().toList().forEach(part -> {
+        *///?}
             viaBedrockUtility$setOffset(this.offset);
             viaBedrockUtility$setAngles(this.defaultRotation);
             this.xScale = this.yScale = this.zScale = 1.0F;

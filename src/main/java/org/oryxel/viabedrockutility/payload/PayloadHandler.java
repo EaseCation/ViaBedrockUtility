@@ -12,7 +12,13 @@ import net.minecraft.client.render.entity.equipment.EquipmentModelLoader;
 import net.minecraft.client.render.entity.model.PlayerEntityModel;
 import net.minecraft.client.texture.NativeImage;
 import net.minecraft.client.texture.NativeImageBackedTexture;
-import net.minecraft.client.util.SkinTextures;
+//? if >=1.21.9 {
+import net.minecraft.entity.player.PlayerSkinType;
+import net.minecraft.entity.player.SkinTextures;
+import net.minecraft.util.AssetInfo;
+//?} else {
+/*import net.minecraft.client.util.SkinTextures;
+*///?}
 import net.minecraft.util.Identifier;
 import org.cube.converter.model.impl.bedrock.BedrockGeometryModel;
 import org.oryxel.viabedrockutility.ViaBedrockUtility;
@@ -48,16 +54,19 @@ public class PayloadHandler {
         }
 
         if (this.packManager == null) {
+            ViaBedrockUtilityFabric.LOGGER.warn("[Payload] Received {} but PackManager is null, ignoring", payload.getClass().getSimpleName());
             return;
         }
 
         if (payload instanceof ModelRequestPayload modelRequest) {
             this.handle(modelRequest);
         } else if (payload instanceof BaseSkinPayload baseSkin) {
+            ViaBedrockUtilityFabric.LOGGER.info("[Skin] Received skin info for player {} ({}x{}, {} chunk(s))", baseSkin.getPlayerUuid(), baseSkin.getSkinWidth(), baseSkin.getSkinHeight(), baseSkin.getChunkCount());
             this.cachedSkinInfo.put(baseSkin.getPlayerUuid(), new SkinInfo(baseSkin.getGeometry(), baseSkin.getResourcePatch(), baseSkin.getSkinWidth(), baseSkin.getSkinHeight(), baseSkin.getChunkCount()));
         } else if (payload instanceof SkinDataPayload skinData) {
             this.handle(skinData);
         } else if (payload instanceof CapeDataPayload capePayload) {
+            ViaBedrockUtilityFabric.LOGGER.info("[Skin] Received cape data for player {}", capePayload.getPlayerUuid());
             this.handle(capePayload);
         }
     }
@@ -87,7 +96,11 @@ public class PayloadHandler {
         }
 
         final PlayerSkinBuilder builder = new PlayerSkinBuilder(entry.getSkinTextures());
-        builder.capeTexture = payload.getIdentifier();
+        //? if >=1.21.9 {
+        builder.cape = new AssetInfo.TextureAssetInfo(payload.getIdentifier());
+        //?} else {
+        /*builder.capeTexture = payload.getIdentifier();
+        *///?}
 
         ((PlayerSkinFieldAccessor)entry).setPlayerSkin(builder::build);
     }
@@ -128,7 +141,11 @@ public class PayloadHandler {
             // If we can still get player list entry then use this to set skin still a good idea!
             if (entry != null) {
                 final PlayerSkinBuilder builder = new PlayerSkinBuilder(entry.getSkinTextures());
-                builder.texture = identifier;
+                //? if >=1.21.9 {
+                builder.body = new AssetInfo.TextureAssetInfo(identifier);
+                //?} else {
+                /*builder.texture = identifier;
+                *///?}
 
                 ((PlayerSkinFieldAccessor)entry).setPlayerSkin(builder::build);
             }
@@ -195,9 +212,17 @@ public class PayloadHandler {
             model = new PlayerEntityModel(PlayerEntityModel.getTexturedModelData(Dilation.NONE, slim).getRoot().createPart(64, 64), slim);
         }
 
+        //? if >=1.21.9 {
         final EntityRendererFactory.Context entityContext = new EntityRendererFactory.Context(client.getEntityRenderDispatcher(),
                 client.getItemModelManager(), client.getMapRenderer(), client.getBlockRenderManager(),
-                client.getResourceManager(), client.getLoadedEntityModels(), new EquipmentModelLoader(), client.textRenderer);
+                client.getResourceManager(), client.getLoadedEntityModels(), new EquipmentModelLoader(),
+                client.getAtlasManager(), client.textRenderer, client.getPlayerSkinCache());
+        //?} else {
+        /*final EntityRendererFactory.Context entityContext = new EntityRendererFactory.Context(client.getEntityRenderDispatcher(),
+                client.getItemModelManager(), client.getMapRenderer(), client.getBlockRenderManager(),
+                client.getResourceManager(), client.getLoadedEntityModels(), new EquipmentModelLoader(),
+                client.textRenderer);
+        *///?}
         this.cachedPlayerRenderers.put(payload.getPlayerUuid(), new CustomPlayerRenderer(entityContext, model, slim, identifier));
 
         if (client.getNetworkHandler() == null) {
@@ -209,8 +234,13 @@ public class PayloadHandler {
         // Do this once again for emmmm the slim or wide model.
         if (entry != null) {
             final PlayerSkinBuilder builder = new PlayerSkinBuilder(entry.getSkinTextures());
-            builder.texture = identifier;
+            //? if >=1.21.9 {
+            builder.body = new AssetInfo.TextureAssetInfo(identifier);
+            builder.model = slim ? PlayerSkinType.SLIM : PlayerSkinType.WIDE;
+            //?} else {
+            /*builder.texture = identifier;
             builder.model = slim ? SkinTextures.Model.SLIM : SkinTextures.Model.WIDE;
+            *///?}
 
             ((PlayerSkinFieldAccessor)entry).setPlayerSkin(builder::build);
         }
