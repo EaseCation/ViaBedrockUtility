@@ -36,6 +36,7 @@ public class BasePayload implements CustomPayload {
                 return new BasePayload();
             }
             case MODEL_REQUEST -> {
+                final java.util.UUID uuid = buf.readUuid();
                 final String identifier = readString(buf);
 
                 BigInteger combinedFlags = BigInteger.ZERO;
@@ -46,15 +47,18 @@ public class BasePayload implements CustomPayload {
                     combinedFlags = combinedFlags.add(BigInteger.valueOf(buf.readLong()).shiftLeft(64));
                 }
 
-                Integer variant = null, mark_variant = null;
+                Integer variant = null, mark_variant = null, skinId = null;
                 if (buf.readBoolean()) {
                     variant = buf.readInt();
                 }
                 if (buf.readBoolean()) {
                     mark_variant = buf.readInt();
                 }
+                if (buf.readBoolean()) {
+                    skinId = buf.readInt();
+                }
 
-                return new ModelRequestPayload(identifier, EnumUtil.getEnumSetFromBitmask(ActorFlags.class, combinedFlags, ActorFlags::getValue), variant, mark_variant, buf.readUuid());
+                return new ModelRequestPayload(identifier, EnumUtil.getEnumSetFromBitmask(ActorFlags.class, combinedFlags, ActorFlags::getValue), variant, mark_variant, skinId, uuid);
             }
 
             case ANIMATE -> {

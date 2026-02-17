@@ -13,13 +13,13 @@ public class ModelRequestPayload extends BasePayload {
     private final UUID uuid;
     private final EntityData entityData;
 
-    public ModelRequestPayload(String identifier, Set<ActorFlags> flags, Integer variant, Integer mark_variant, UUID uuid) {
+    public ModelRequestPayload(String identifier, Set<ActorFlags> flags, Integer variant, Integer mark_variant, Integer skinId, UUID uuid) {
         this.identifier = identifier;
         this.uuid = uuid;
 
-        this.entityData = new EntityData(flags, variant, mark_variant);
+        this.entityData = new EntityData(flags, variant, mark_variant, skinId);
     }
 
-    public record EntityData(Set<ActorFlags> flags, Integer mark_variant, Integer variant) {
+    public record EntityData(Set<ActorFlags> flags, Integer variant, Integer mark_variant, Integer skinId) {
     }
 }

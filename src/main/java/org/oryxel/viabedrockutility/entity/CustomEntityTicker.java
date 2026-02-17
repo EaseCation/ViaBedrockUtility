@@ -53,7 +53,7 @@ public class CustomEntityTicker {
     private final CustomEntityRenderer<?> renderer;
 
     @Setter
-    private Integer variant, markVariant;
+    private Integer variant, markVariant, skinId;
 
     private boolean hasPlayInitAnimation;
 
@@ -142,6 +142,9 @@ public class CustomEntityTicker {
         }
         if (this.markVariant != null) {
             queryBinding.set("mark_variant", Value.of(this.markVariant));
+        }
+        if (this.skinId != null) {
+            queryBinding.set("skin_id", Value.of(this.skinId));
         }
 
         final Set<ActorFlags> entityFlags = this.entityFlags();
