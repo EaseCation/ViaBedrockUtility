@@ -66,6 +66,9 @@ public class Animator {
         queryBinding.set("body_y_rotation", Value.of(state.getBodyYaw()));
         queryBinding.set("body_x_rotation", Value.of(state.getBodyPitch()));
 
+        queryBinding.set("target_x_rotation", Value.of(state.getTargetXRotation()));
+        queryBinding.set("target_y_rotation", Value.of(state.getTargetYRotation()));
+
         // Register rotation_to_camera query function for billboard effect
         queryBinding.setFunction("rotation_to_camera", (double arg) -> {
             if ((int) arg == 0) return (double) state.getRotationToCameraX();

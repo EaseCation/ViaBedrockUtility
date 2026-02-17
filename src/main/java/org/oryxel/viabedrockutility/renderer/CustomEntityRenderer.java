@@ -19,6 +19,7 @@ import net.minecraft.client.render.entity.state.EntityRenderState;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.Entity;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.RotationAxis;
 import net.minecraft.util.math.Vec3d;
 import org.cube.converter.data.bedrock.controller.BedrockRenderController;
@@ -43,6 +44,14 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
 
     private final CustomEntityTicker ticker;
     private final List<Model> models;
+
+    // Bedrock-style head/body rotation simulation (per-entity)
+    private float smoothedHeadYaw;
+    private float smoothedHeadPitch;
+    private float simulatedBodyYaw;
+    private float lastSignificantHeadYaw;  // last head yaw that triggered delay reset
+    private long headStableStartMs;         // when head last became "stable"
+    private boolean rotationInitialized;
 
     public CustomEntityRenderer(final CustomEntityTicker ticker, final List<Model> models, EntityRendererFactory.Context context) {
         super(context);
@@ -197,10 +206,52 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
     public void updateRenderState(T entity, CustomEntityRenderState state, float tickDelta) {
         super.updateRenderState(entity, state, tickDelta);
         state.setCustomRenderer(this);
-        state.yaw = entity.getYaw(tickDelta);
-        state.bodyYaw = entity.getBodyYaw();
-        state.bodyPitch = entity.getPitch();
+        float serverYaw = entity.getYaw(tickDelta);
+        float serverPitch = entity.getPitch(tickDelta);
         state.distanceTraveled = entity.distanceTraveled;
+
+        // Initialize on first frame
+        if (!this.rotationInitialized) {
+            this.smoothedHeadYaw = serverYaw;
+            this.smoothedHeadPitch = serverPitch;
+            this.simulatedBodyYaw = serverYaw;
+            this.lastSignificantHeadYaw = serverYaw;
+            this.headStableStartMs = System.currentTimeMillis();
+            this.rotationInitialized = true;
+        }
+
+        // --- Head smoothing: fast interpolation towards server values ---
+        this.smoothedHeadYaw += MathHelper.wrapDegrees(serverYaw - this.smoothedHeadYaw) * 0.5F;
+        this.smoothedHeadPitch += (serverPitch - this.smoothedHeadPitch) * 0.5F;
+
+        // --- Body delay mechanism (based on vanilla BodyControl) ---
+        // Max allowed head-body angle (vanilla: getMaxHeadRotation() = 75 for most mobs)
+        float maxHeadRot = 50.0F;
+        long now = System.currentTimeMillis();
+
+        if (Math.abs(MathHelper.wrapDegrees(this.smoothedHeadYaw - this.lastSignificantHeadYaw)) > 15.0F) {
+            // Head moved significantly: restart delay, clamp body within range
+            this.lastSignificantHeadYaw = this.smoothedHeadYaw;
+            this.headStableStartMs = now;
+            this.simulatedBodyYaw = MathHelper.clampAngle(this.simulatedBodyYaw, this.smoothedHeadYaw, maxHeadRot);
+        } else {
+            long elapsedMs = now - this.headStableStartMs;
+            if (elapsedMs > 500) {
+                // After 0.5s delay: gradually reduce allowed body-head angle over 0.5s
+                float progress = MathHelper.clamp((elapsedMs - 500) / 500.0F, 0.0F, 1.0F);
+                float maxAngle = maxHeadRot * (1.0F - progress);
+                this.simulatedBodyYaw = MathHelper.clampAngle(this.simulatedBodyYaw, this.smoothedHeadYaw, maxAngle);
+            }
+        }
+
+        state.yaw = this.smoothedHeadYaw;
+        state.bodyYaw = this.simulatedBodyYaw;
+        state.bodyPitch = this.smoothedHeadPitch;
+
+        // target_x_rotation = head pitch (body pitch ≈ 0 for standing entities)
+        // target_y_rotation = head yaw - body yaw (from body delay mechanism)
+        state.setTargetXRotation(state.bodyPitch);
+        state.setTargetYRotation(MathHelper.wrapDegrees(state.yaw - state.bodyYaw));
 
         // Calculate rotation_to_camera for billboard effect
         final var camera = MinecraftClient.getInstance().gameRenderer.getCamera();
@@ -209,17 +260,17 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
         //?} else {
         /*final Vec3d cameraPos = camera.getPos();
         *///?}
-        final Vec3d entityPos = entity.getLerpedPos(tickDelta);
-        final double dx = cameraPos.x - entityPos.x;
-        final double dy = cameraPos.y - entityPos.y;
-        final double dz = cameraPos.z - entityPos.z;
+        final Vec3d camEntityPos = entity.getLerpedPos(tickDelta);
+        final double dx = cameraPos.x - camEntityPos.x;
+        final double dy = cameraPos.y - camEntityPos.y;
+        final double dz = cameraPos.z - camEntityPos.z;
         final double horizontalDist = Math.sqrt(dx * dx + dz * dz);
         state.setRotationToCameraX(-(float) Math.toDegrees(Math.atan2(dy, horizontalDist)));
-        state.setRotationToCameraY(-(float) (Math.toDegrees(Math.atan2(dx, dz)) + state.yaw - 180.0));
+        state.setRotationToCameraY(-(float) (Math.toDegrees(Math.atan2(dx, dz)) + state.bodyYaw - 180.0));
     }
 
     private void setupTransforms(CustomEntityRenderState state, MatrixStack matrices) {
-        matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(180 - state.yaw));
+        matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(180 - state.bodyYaw));
     }
 
     @Override
@@ -240,6 +291,10 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
         private float rotationToCameraX;
         @Setter
         private float rotationToCameraY;
+        @Setter
+        private float targetXRotation;
+        @Setter
+        private float targetYRotation;
     }
 
     private void applyPartVisibility(CustomEntityModel<?> entityModel, Map<String, String> pv, Scope scope) {
