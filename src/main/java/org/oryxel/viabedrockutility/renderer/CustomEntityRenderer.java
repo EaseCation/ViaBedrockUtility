@@ -257,15 +257,16 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
             part.visible = defaultVisible;
         }
 
-        // Override specific bones — set ALL parts with matching name (no break)
+        // Override specific bones using name index — O(pv.size()) instead of O(pv.size() × allParts.size())
         // In VBU's model hierarchy, each bone produces both a bone ModelPart and
         // a cube wrapper ModelPart sharing the same name; both must be updated.
+        final Map<String, List<ModelPart>> partsByName = entityModel.getPartsByName();
         for (Map.Entry<String, String> entry : pv.entrySet()) {
             if ("*".equals(entry.getKey())) continue;
-            boolean vis = evalVisibility(entry.getValue(), scope);
-            for (ModelPart part : allParts) {
-                final String name = ((IModelPart) ((Object) part)).viaBedrockUtility$getName();
-                if (name.equals(entry.getKey())) {
+            List<ModelPart> matchingParts = partsByName.get(entry.getKey());
+            if (matchingParts != null) {
+                boolean vis = evalVisibility(entry.getValue(), scope);
+                for (ModelPart part : matchingParts) {
                     part.visible = vis;
                 }
             }

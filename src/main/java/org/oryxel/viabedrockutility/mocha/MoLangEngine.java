@@ -29,15 +29,33 @@ import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 
 @SuppressWarnings("UnstableApiUsage")
 public class MoLangEngine {
+    private static final ConcurrentHashMap<String, List<Expression>> PARSE_CACHE = new ConcurrentHashMap<>();
+    private static final int MAX_CACHE_SIZE = 4096;
+
     public static Value eval(final Scope scope, final String expression) throws IOException {
+        if (expression == null || expression.isEmpty()) {
+            return NumberValue.zero();
+        }
+
+        // Fast path: numeric literals (e.g. "0", "1.5", "-0.3") skip parse entirely
+        final char first = expression.charAt(0);
+        if ((first >= '0' && first <= '9') || first == '-' || first == '.') {
+            try {
+                return NumberValue.of(Double.parseDouble(expression));
+            } catch (NumberFormatException ignored) {
+                // Not a pure number, fall through to normal parse
+            }
+        }
+
         return eval(scope, parse(expression));
     }
 
     public static Value eval(final Scope scope, final List<Expression> expressions) {
-        final Scope localScope = scope.copy();
+        final LayeredScope localScope = new LayeredScope(scope);
         final MutableObjectBinding tempBinding = new MutableObjectBinding();
         localScope.set("temp", tempBinding);
         localScope.set("t", tempBinding);
@@ -60,8 +78,17 @@ public class MoLangEngine {
     }
 
     public static List<Expression> parse(final String expression) throws IOException {
+        List<Expression> cached = PARSE_CACHE.get(expression);
+        if (cached != null) {
+            return cached;
+        }
+
         try (final StringReader reader = new StringReader(expression)) {
-            return parse(reader);
+            List<Expression> parsed = parse(reader);
+            if (PARSE_CACHE.size() < MAX_CACHE_SIZE) {
+                PARSE_CACHE.put(expression, parsed);
+            }
+            return parsed;
         }
     }
 

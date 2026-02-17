@@ -11,15 +11,21 @@ import java.io.IOException;
 
 // Taken from vanilla Transformation.
 public record AnimateTransformation(Target target, VBUKeyFrame[] keyframes) {
+    // Static temp vectors for interpolation (render thread is single-threaded)
+    private static final Vector3f TEMP_V0 = new Vector3f();
+    private static final Vector3f TEMP_V1 = new Vector3f();
+    private static final Vector3f TEMP_V2 = new Vector3f();
+    private static final Vector3f TEMP_V3 = new Vector3f();
+
     public static class Interpolations {
         public static final Interpolation LINEAR = (scope, dest, delta, keyframes, start, end, scale) -> {
-            Vector3f v1 = eval(scope, keyframes[start].postTarget());
-            Vector3f v2 = eval(scope, keyframes[end].preTarget());
-            return v1.lerp(v2, delta, dest).mul(scale);
+            eval(scope, keyframes[start].postTarget(), TEMP_V1);
+            eval(scope, keyframes[end].preTarget(), TEMP_V2);
+            return TEMP_V1.lerp(TEMP_V2, delta, dest).mul(scale);
         };
         public static final Interpolation STEP = (scope, dest, delta, keyframes, start, end, scale) -> {
-            Vector3f v = eval(scope, keyframes[start].postTarget());
-            dest.set(v.x() * scale, v.y() * scale, v.z() * scale);
+            eval(scope, keyframes[start].postTarget(), dest);
+            dest.mul(scale);
             return dest;
         };
         public static final Interpolation CUBIC = (scope, dest, delta, keyframes, start, end, scale) -> {
@@ -27,28 +33,38 @@ public record AnimateTransformation(Target target, VBUKeyFrame[] keyframes) {
             boolean hasBefore = start > 0 && !keyframes[start].hasSeparatePrePost();
             boolean hasAfter = end < keyframes.length - 1 && !keyframes[end].hasSeparatePrePost();
 
-            Vector3f p1 = eval(scope, keyframes[start].postTarget());
-            Vector3f p2 = eval(scope, keyframes[end].preTarget());
-            Vector3f p0 = hasBefore ? eval(scope, keyframes[start - 1].postTarget()) : p1;
-            Vector3f p3 = hasAfter ? eval(scope, keyframes[end + 1].preTarget()) : p2;
+            eval(scope, keyframes[start].postTarget(), TEMP_V1);
+            eval(scope, keyframes[end].preTarget(), TEMP_V2);
+            if (hasBefore) {
+                eval(scope, keyframes[start - 1].postTarget(), TEMP_V0);
+            } else {
+                TEMP_V0.set(TEMP_V1);
+            }
+            if (hasAfter) {
+                eval(scope, keyframes[end + 1].preTarget(), TEMP_V3);
+            } else {
+                TEMP_V3.set(TEMP_V2);
+            }
 
             dest.set(
-                    MathHelper.catmullRom(delta, p0.x(), p1.x(), p2.x(), p3.x()) * scale,
-                    MathHelper.catmullRom(delta, p0.y(), p1.y(), p2.y(), p3.y()) * scale,
-                    MathHelper.catmullRom(delta, p0.z(), p1.z(), p2.z(), p3.z()) * scale
+                    MathHelper.catmullRom(delta, TEMP_V0.x(), TEMP_V1.x(), TEMP_V2.x(), TEMP_V3.x()) * scale,
+                    MathHelper.catmullRom(delta, TEMP_V0.y(), TEMP_V1.y(), TEMP_V2.y(), TEMP_V3.y()) * scale,
+                    MathHelper.catmullRom(delta, TEMP_V0.z(), TEMP_V1.z(), TEMP_V2.z(), TEMP_V3.z()) * scale
             );
             return dest;
         };
     }
 
-    private static Vector3f eval(Scope scope, String[] molang3) {
+    private static void eval(Scope scope, String[] molang3, Vector3f dest) {
         try {
-            return new Vector3f((float) MoLangEngine.eval(scope, molang3[0]).getAsNumber(),
+            dest.set(
+                    (float) MoLangEngine.eval(scope, molang3[0]).getAsNumber(),
                     (float) MoLangEngine.eval(scope, molang3[1]).getAsNumber(),
-                    (float) MoLangEngine.eval(scope, molang3[2]).getAsNumber());
+                    (float) MoLangEngine.eval(scope, molang3[2]).getAsNumber()
+            );
         } catch (IOException e) {
             e.printStackTrace();
-            return new Vector3f();
+            dest.set(0, 0, 0);
         }
     }
 
@@ -70,5 +86,3 @@ public record AnimateTransformation(Target target, VBUKeyFrame[] keyframes) {
         Vector3f apply(Scope scope, Vector3f var1, float var2, VBUKeyFrame[] var3, int var4, int var5, float var6);
     }
 }
-
-

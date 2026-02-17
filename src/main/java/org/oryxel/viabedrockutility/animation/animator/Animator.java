@@ -6,6 +6,7 @@ import org.joml.Vector3f;
 import org.oryxel.viabedrockutility.animation.vanilla.AnimationHelper;
 import org.oryxel.viabedrockutility.entity.CustomEntityTicker;
 import org.oryxel.viabedrockutility.mixin.interfaces.IModelPart;
+import org.oryxel.viabedrockutility.mocha.LayeredScope;
 import org.oryxel.viabedrockutility.mocha.MoLangEngine;
 import org.oryxel.viabedrockutility.pack.definitions.AnimationDefinitions;
 import org.oryxel.viabedrockutility.renderer.CustomEntityRenderer;
@@ -16,8 +17,6 @@ import team.unnamed.mocha.runtime.value.Value;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
-import java.util.Queue;
-import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class Animator {
     private final CustomEntityTicker ticker;
@@ -56,7 +55,7 @@ public class Animator {
             }
         }
 
-        final Scope scope = this.baseScope.copy();
+        final Scope scope = new LayeredScope(this.baseScope);
 
         final MutableObjectBinding queryBinding = new MutableObjectBinding();
         queryBinding.setAllFrom((MutableObjectBinding) this.baseScope.get("query"));
@@ -118,27 +117,29 @@ public class Animator {
     }
 
     private void tickTimeline(float runningTime) {
-        final Queue<Map.Entry<Float, List<String>>> entries = new ConcurrentLinkedQueue<>();
-        this.data.animation().getTimeline().entrySet().forEach(entries::add);
+        final Map<Float, List<String>> timeline = this.data.animation().getTimeline();
+        if (timeline.isEmpty()) {
+            return;
+        }
 
-        Map.Entry<Float, List<String>> entry;
-        while ((entry = entries.peek()) != null) {
-            entries.poll();
+        Float nextTimestamp = null;
+        Map.Entry<Float, List<String>> candidate = null;
 
+        for (Map.Entry<Float, List<String>> entry : timeline.entrySet()) {
             float timestamp = entry.getKey();
-            if (runningTime < timestamp) {
-                continue;
+            if (timestamp > runningTime) {
+                nextTimestamp = timestamp;
+                break;
             }
+            if (!entry.getValue().isEmpty()) {
+                candidate = entry;
+            }
+        }
 
-            if (entry.getValue().isEmpty()) {
-                continue;
-            }
-
-            // Equal to this timestamp and smaller than the next timestamp.
-            if ((entries.peek() == null || entries.peek().getKey() > runningTime) && Math.abs(timestamp - runningTime) < 0.005F) {
-                this.ticker.handleAnimationTimeline(entry.getValue());
-                System.out.println(runningTime + "," + timestamp);
-            }
+        if (candidate != null
+                && (nextTimestamp == null || nextTimestamp > runningTime)
+                && Math.abs(candidate.getKey() - runningTime) < 0.005F) {
+            this.ticker.handleAnimationTimeline(candidate.getValue());
         }
     }
 
