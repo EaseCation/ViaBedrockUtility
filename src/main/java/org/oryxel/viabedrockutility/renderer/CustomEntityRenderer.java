@@ -50,11 +50,12 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
         if (renderLogCounter++ % 100 == 0) {
             ViaBedrockUtilityFabric.LOGGER.info("[Render] CustomEntityRenderer.render() called, models={}, animators={}", this.models.size(), this.animators.size());
         }
+        float s = (this.ticker.getScale() != null) ? this.ticker.getScale() : 1.0F;
         for (Model model : this.models) {
             matrices.push();
 
             this.setupTransforms(state, matrices);
-            matrices.scale(-1.0F, -1.0F, 1.0F);
+            matrices.scale(-s, -s, s);
             matrices.translate(0.0F, -1.501F, 0.0F);
             this.animators.values().forEach(animator -> {
                 try {
@@ -84,11 +85,12 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
     //?} else {
     /*@Override
     public void render(CustomEntityRenderState state, MatrixStack matrices, VertexConsumerProvider vertexConsumers, int light) {
+        float s = (this.ticker.getScale() != null) ? this.ticker.getScale() : 1.0F;
         for (Model model : this.models) {
             matrices.push();
 
             this.setupTransforms(state, matrices);
-            matrices.scale(-1.0F, -1.0F, 1.0F);
+            matrices.scale(-s, -s, s);
             matrices.translate(0.0F, -1.501F, 0.0F);
             this.animators.values().forEach(animator -> {
                 try {

@@ -46,6 +46,7 @@ public class CustomEntityPayloadHandler extends PayloadHandler {
         ticker.setVariant(payload.getEntityData().variant());
         ticker.setMarkVariant(payload.getEntityData().mark_variant());
         ticker.setSkinId(payload.getEntityData().skinId());
+        ticker.setScale(payload.getEntityData().scale());
 
         ticker.update();
     }

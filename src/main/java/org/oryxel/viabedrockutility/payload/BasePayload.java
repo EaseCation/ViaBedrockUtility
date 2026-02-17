@@ -48,6 +48,7 @@ public class BasePayload implements CustomPayload {
                 }
 
                 Integer variant = null, mark_variant = null, skinId = null;
+                Float scale = null;
                 if (buf.readBoolean()) {
                     variant = buf.readInt();
                 }
@@ -57,8 +58,11 @@ public class BasePayload implements CustomPayload {
                 if (buf.readBoolean()) {
                     skinId = buf.readInt();
                 }
+                if (buf.readBoolean()) {
+                    scale = buf.readFloat();
+                }
 
-                return new ModelRequestPayload(identifier, EnumUtil.getEnumSetFromBitmask(ActorFlags.class, combinedFlags, ActorFlags::getValue), variant, mark_variant, skinId, uuid);
+                return new ModelRequestPayload(identifier, EnumUtil.getEnumSetFromBitmask(ActorFlags.class, combinedFlags, ActorFlags::getValue), variant, mark_variant, skinId, scale, uuid);
             }
 
             case ANIMATE -> {

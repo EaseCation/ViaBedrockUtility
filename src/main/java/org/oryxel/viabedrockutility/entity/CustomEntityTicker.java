@@ -55,6 +55,9 @@ public class CustomEntityTicker {
     @Setter
     private Integer variant, markVariant, skinId;
 
+    @Setter @Getter
+    private Float scale;
+
     private boolean hasPlayInitAnimation;
 
     public CustomEntityTicker(final EntityDefinitions.EntityDefinition entityDefinition) {
