@@ -32,6 +32,9 @@ public class Animator {
     @Setter
     private Scope baseScope;
 
+    @Setter
+    private float blendWeight = 1.0f;
+
     public Animator(CustomEntityTicker ticker, AnimationDefinitions.AnimationData data) {
         this.ticker = ticker;
         this.data = data;
@@ -41,6 +44,10 @@ public class Animator {
     }
 
     public void animate(Model model, CustomEntityRenderer.CustomEntityRenderState state) throws IOException {
+        if (this.blendWeight <= 0) {
+            return;
+        }
+
         if (this.donePlaying) {
             if (this.data.animation().getLoop().getValue().equals(true)) {
                 this.donePlaying = false;
@@ -59,6 +66,13 @@ public class Animator {
 
         queryBinding.set("body_y_rotation", Value.of(state.getBodyYaw()));
         queryBinding.set("body_x_rotation", Value.of(state.getBodyPitch()));
+
+        // Register rotation_to_camera query function for billboard effect
+        queryBinding.setFunction("rotation_to_camera", (double arg) -> {
+            if ((int) arg == 0) return (double) state.getRotationToCameraX();
+            if ((int) arg == 1) return (double) state.getRotationToCameraY();
+            return 0.0;
+        });
 
         scope.set("q", queryBinding);
         scope.set("query", queryBinding);
@@ -92,7 +106,7 @@ public class Animator {
         queryBinding.set("anim_time", Value.of(runningTime));
         queryBinding.set("life_time", Value.of(runningTime));
 
-        AnimationHelper.animate(scope, model, data.compiled(), System.currentTimeMillis() - this.animationStartMS, 1, TEMP_VEC);
+        AnimationHelper.animate(scope, model, data.compiled(), System.currentTimeMillis() - this.animationStartMS, this.blendWeight, TEMP_VEC);
 
         float runningTimeWithoutLoop = (System.currentTimeMillis() - this.animationStartMS) / 1000F;
         this.tickTimeline(runningTimeWithoutLoop);

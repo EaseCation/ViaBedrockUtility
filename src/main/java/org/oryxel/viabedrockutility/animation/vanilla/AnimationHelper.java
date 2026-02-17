@@ -42,7 +42,18 @@ public class AnimationHelper {
                 float h = g - lv.timestamp();
                 float k = j != i ? MathHelper.clamp(h / (lv2.timestamp() - lv.timestamp()), 0.0f, 1.0f) : 1F;
 
-                lv2.interpolation().apply(scope, tempVec, k, lvs, i, j, scale);
+                // Select interpolation type following Blockbench logic:
+                // step takes priority, then catmullrom if either side uses it
+                AnimateTransformation.Interpolation interp;
+                if (lv.interpolation() == AnimateTransformation.Interpolations.STEP) {
+                    interp = AnimateTransformation.Interpolations.STEP;
+                } else if (lv.interpolation() == AnimateTransformation.Interpolations.CUBIC
+                        || lv2.interpolation() == AnimateTransformation.Interpolations.CUBIC) {
+                    interp = AnimateTransformation.Interpolations.CUBIC;
+                } else {
+                    interp = lv2.interpolation();
+                }
+                interp.apply(scope, tempVec, k, lvs, i, j, scale);
                 transformation.target().apply(part, tempVec);
             }
         }

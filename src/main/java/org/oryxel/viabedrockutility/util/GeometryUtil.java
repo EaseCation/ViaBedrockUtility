@@ -162,18 +162,23 @@ public final class GeometryUtil {
         int s = 0;
 
         if (set.contains(Direction.DOWN)) {
-            final Float[] uv = map.getMap().get(org.cube.converter.util.element.Direction.DOWN);
+            // Bedrock UP/DOWN texture regions are swapped vs Java; swap UV if both faces exist (box UV)
+            Float[] uv = map.getMap().get(org.cube.converter.util.element.Direction.UP);
+            if (uv == null) uv = map.getMap().get(org.cube.converter.util.element.Direction.DOWN);
             sides[s++] = new ModelPart.Quad(new ModelPart.Vertex[]{vertex6, vertex5, vertex, vertex2}, uv[0], uv[1], uv[2], uv[3], uvWidth, uvHeight, mirror, Direction.DOWN);
         }
 
         if (set.contains(Direction.UP)) {
-            final Float[] uv = map.getMap().get(org.cube.converter.util.element.Direction.UP);
+            // Bedrock UP/DOWN texture regions are swapped vs Java; swap UV if both faces exist (box UV)
+            Float[] uv = map.getMap().get(org.cube.converter.util.element.Direction.DOWN);
+            if (uv == null) uv = map.getMap().get(org.cube.converter.util.element.Direction.UP);
             sides[s++] = new ModelPart.Quad(new ModelPart.Vertex[]{vertex3, vertex4, vertex8, vertex7}, uv[0], uv[1], uv[2], uv[3], uvWidth, uvHeight, mirror, Direction.UP);
         }
 
         if (set.contains(Direction.WEST)) {
             final Float[] uv = map.getMap().get(org.cube.converter.util.element.Direction.WEST);
-            sides[s++] = new ModelPart.Quad(new ModelPart.Vertex[]{vertex, vertex5, vertex8, vertex4}, uv[0], uv[1], uv[2], uv[3], uvWidth, uvHeight, mirror, Direction.WEST);
+            // Swap u1/u2 to compensate for horizontal flip caused by global scale(-1,-1,1) Z negation
+            sides[s++] = new ModelPart.Quad(new ModelPart.Vertex[]{vertex, vertex5, vertex8, vertex4}, uv[2], uv[1], uv[0], uv[3], uvWidth, uvHeight, mirror, Direction.WEST);
         }
 
         if (set.contains(Direction.NORTH)) {
@@ -183,7 +188,8 @@ public final class GeometryUtil {
 
         if (set.contains(Direction.EAST)) {
             final Float[] uv = map.getMap().get(org.cube.converter.util.element.Direction.EAST);
-            sides[s++] = new ModelPart.Quad(new ModelPart.Vertex[]{vertex6, vertex2, vertex3, vertex7}, uv[0], uv[1], uv[2], uv[3], uvWidth, uvHeight, mirror, Direction.EAST);
+            // Swap u1/u2 to compensate for horizontal flip caused by global scale(-1,-1,1) Z negation
+            sides[s++] = new ModelPart.Quad(new ModelPart.Vertex[]{vertex6, vertex2, vertex3, vertex7}, uv[2], uv[1], uv[0], uv[3], uvWidth, uvHeight, mirror, Direction.EAST);
         }
 
         if (set.contains(Direction.SOUTH)) {

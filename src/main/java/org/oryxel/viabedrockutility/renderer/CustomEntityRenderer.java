@@ -2,6 +2,8 @@ package org.oryxel.viabedrockutility.renderer;
 
 import lombok.Getter;
 import lombok.Setter;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.model.ModelPart;
 import net.minecraft.client.render.*;
 //? if >=1.21.9 {
 import net.minecraft.client.render.command.OrderedRenderCommandQueue;
@@ -18,12 +20,17 @@ import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.Entity;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.RotationAxis;
+import net.minecraft.util.math.Vec3d;
+import org.cube.converter.data.bedrock.controller.BedrockRenderController;
 import org.oryxel.viabedrockutility.animation.animator.Animator;
 import org.oryxel.viabedrockutility.entity.CustomEntityTicker;
 import org.oryxel.viabedrockutility.fabric.ViaBedrockUtilityFabric;
 import org.oryxel.viabedrockutility.material.data.Material;
+import org.oryxel.viabedrockutility.mixin.interfaces.IModelPart;
+import org.oryxel.viabedrockutility.mocha.MoLangEngine;
 import org.oryxel.viabedrockutility.pack.definitions.AnimationDefinitions;
 import org.oryxel.viabedrockutility.renderer.model.CustomEntityModel;
+import team.unnamed.mocha.runtime.Scope;
 
 import java.io.IOException;
 import java.util.List;
@@ -57,6 +64,24 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
             this.setupTransforms(state, matrices);
             matrices.scale(-s, -s, s);
             matrices.translate(0.0F, -1.501F, 0.0F);
+            // Evaluate animate conditions per-frame and update blend weights
+            final Scope conditionScope = this.ticker.getLastExecutionScope();
+            if (conditionScope != null) {
+                this.animators.forEach((animId, animator) -> {
+                    String condition = this.ticker.getAnimationIdToCondition().get(animId);
+                    if (condition != null && !condition.isBlank()) {
+                        try {
+                            float weight = (float) MoLangEngine.eval(conditionScope, condition).getAsNumber();
+                            animator.setBlendWeight(weight);
+                        } catch (Throwable e) {
+                            animator.setBlendWeight(0);
+                        }
+                    } else {
+                        animator.setBlendWeight(1.0f);
+                    }
+                });
+            }
+
             this.animators.values().forEach(animator -> {
                 try {
                     animator.animate(model.model(), state);
@@ -65,11 +90,25 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
                 }
             });
 
+            // Apply part_visibility
+            if (model.controller() != null && !model.controller().partVisibility().isEmpty()) {
+                final Scope scope = this.ticker.getLastExecutionScope();
+                if (scope != null) {
+                    applyPartVisibility(model.model(), model.controller().partVisibility(), scope);
+                }
+            }
+
             try {
                 RenderLayer renderLayer = model.material.info().getVariants().get("skinning_color").build().apply(model.texture);
                 if (renderLayer != null) {
+                    // Apply lighting properties
+                    int effectiveLight = state.light;
+                    if (model.controller() != null && model.controller().ignoreLighting()) {
+                        effectiveLight = LightmapTextureManager.MAX_LIGHT_COORDINATE;
+                    }
+
                     RenderCommandQueue batchQueue = queue.getBatchingQueue(0);
-                    batchQueue.submitModelPart(model.model.getRootPart(), matrices, renderLayer, state.light, OverlayTexture.packUv(0, 10), null);
+                    batchQueue.submitModelPart(model.model.getRootPart(), matrices, renderLayer, effectiveLight, OverlayTexture.packUv(0, 10), null);
                 } else if (renderLogCounter % 100 == 1) {
                     ViaBedrockUtilityFabric.LOGGER.warn("[Render] RenderLayer is null for model key={}, texture={}", model.key(), model.texture());
                 }
@@ -92,6 +131,25 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
             this.setupTransforms(state, matrices);
             matrices.scale(-s, -s, s);
             matrices.translate(0.0F, -1.501F, 0.0F);
+
+            // Evaluate animate conditions per-frame and update blend weights
+            final Scope conditionScope = this.ticker.getLastExecutionScope();
+            if (conditionScope != null) {
+                this.animators.forEach((animId, animator) -> {
+                    String condition = this.ticker.getAnimationIdToCondition().get(animId);
+                    if (condition != null && !condition.isBlank()) {
+                        try {
+                            float weight = (float) MoLangEngine.eval(conditionScope, condition).getAsNumber();
+                            animator.setBlendWeight(weight);
+                        } catch (Throwable e) {
+                            animator.setBlendWeight(0);
+                        }
+                    } else {
+                        animator.setBlendWeight(1.0f);
+                    }
+                });
+            }
+
             this.animators.values().forEach(animator -> {
                 try {
                     animator.animate(model.model(), state);
@@ -100,10 +158,24 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
                 }
             });
 
+            // Apply part_visibility
+            if (model.controller() != null && !model.controller().partVisibility().isEmpty()) {
+                final Scope scope = this.ticker.getLastExecutionScope();
+                if (scope != null) {
+                    applyPartVisibility(model.model(), model.controller().partVisibility(), scope);
+                }
+            }
+
             RenderLayer renderLayer = model.material.info().getVariants().get("skinning_color").build().apply(model.texture);
             if (renderLayer != null) {
+                // Apply lighting properties
+                int effectiveLight = light;
+                if (model.controller() != null && model.controller().ignoreLighting()) {
+                    effectiveLight = LightmapTextureManager.MAX_LIGHT_COORDINATE;
+                }
+
                 VertexConsumer vertexConsumer = vertexConsumers.getBuffer(renderLayer);
-                model.model.render(matrices, vertexConsumer, light, OverlayTexture.packUv(0, 10));
+                model.model.render(matrices, vertexConsumer, effectiveLight, OverlayTexture.packUv(0, 10));
             }
 
             matrices.pop();
@@ -125,6 +197,21 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
         state.bodyYaw = entity.getBodyYaw();
         state.bodyPitch = entity.getPitch();
         state.distanceTraveled = entity.distanceTraveled;
+
+        // Calculate rotation_to_camera for billboard effect
+        final var camera = MinecraftClient.getInstance().gameRenderer.getCamera();
+        //? if >=1.21.6 {
+        final Vec3d cameraPos = camera.getCameraPos();
+        //?} else {
+        /*final Vec3d cameraPos = camera.getPos();
+        *///?}
+        final Vec3d entityPos = entity.getLerpedPos(tickDelta);
+        final double dx = cameraPos.x - entityPos.x;
+        final double dy = cameraPos.y - entityPos.y;
+        final double dz = cameraPos.z - entityPos.z;
+        final double horizontalDist = Math.sqrt(dx * dx + dz * dz);
+        state.setRotationToCameraX(-(float) Math.toDegrees(Math.atan2(dy, horizontalDist)));
+        state.setRotationToCameraY(-(float) (Math.toDegrees(Math.atan2(dx, dz)) + state.yaw - 180.0));
     }
 
     private void setupTransforms(CustomEntityRenderState state, MatrixStack matrices) {
@@ -136,7 +223,7 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
         return new CustomEntityRenderState();
     }
 
-    public record Model(String key, String geometry, CustomEntityModel<CustomEntityRenderState> model, Identifier texture, Material material) {
+    public record Model(String key, String geometry, CustomEntityModel<CustomEntityRenderState> model, Identifier texture, Material material, BedrockRenderController controller) {
     }
 
     @Getter
@@ -145,6 +232,46 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
         private float distanceTraveled;
         @Setter
         private CustomEntityRenderer<?> customRenderer;
+        @Setter
+        private float rotationToCameraX;
+        @Setter
+        private float rotationToCameraY;
+    }
+
+    private void applyPartVisibility(CustomEntityModel<?> entityModel, Map<String, String> pv, Scope scope) {
+        // Determine default visibility from wildcard rule
+        boolean defaultVisible = true;
+        final String defaultRule = pv.get("*");
+        if (defaultRule != null) {
+            defaultVisible = evalVisibility(defaultRule, scope);
+        }
+
+        // Set default visibility for all bones
+        for (ModelPart part : entityModel.getParts()) {
+            part.visible = defaultVisible;
+        }
+
+        // Override specific bones
+        for (Map.Entry<String, String> entry : pv.entrySet()) {
+            if ("*".equals(entry.getKey())) continue;
+            for (ModelPart part : entityModel.getParts()) {
+                final String name = ((IModelPart) ((Object) part)).viaBedrockUtility$getName();
+                if (name.equals(entry.getKey())) {
+                    part.visible = evalVisibility(entry.getValue(), scope);
+                    break;
+                }
+            }
+        }
+    }
+
+    private boolean evalVisibility(String expression, Scope scope) {
+        if ("false".equals(expression)) return false;
+        if ("true".equals(expression)) return true;
+        try {
+            return MoLangEngine.eval(scope, expression).getAsBoolean();
+        } catch (Throwable e) {
+            return true;
+        }
     }
 
     public void reset() {

@@ -1,7 +1,6 @@
 package org.oryxel.viabedrockutility.animation.vanilla;
 
 import net.minecraft.client.model.ModelPart;
-import net.minecraft.client.render.entity.animation.Transformation;
 import net.minecraft.util.math.MathHelper;
 import org.joml.Vector3f;
 import org.oryxel.viabedrockutility.mixin.interfaces.IModelPart;
@@ -13,17 +12,31 @@ import java.io.IOException;
 // Taken from vanilla Transformation.
 public record AnimateTransformation(Target target, VBUKeyFrame[] keyframes) {
     public static class Interpolations {
-        public static final Interpolation LINEAR = (scope,dest, delta, keyframes, start, end, scale) -> {
-            Vector3f vector3f2 = eval(scope, keyframes[start].target());
-            Vector3f vector3f3 = eval(scope, keyframes[end].target());
-            return vector3f2.lerp(vector3f3, delta, dest).mul(scale);
+        public static final Interpolation LINEAR = (scope, dest, delta, keyframes, start, end, scale) -> {
+            Vector3f v1 = eval(scope, keyframes[start].postTarget());
+            Vector3f v2 = eval(scope, keyframes[end].preTarget());
+            return v1.lerp(v2, delta, dest).mul(scale);
+        };
+        public static final Interpolation STEP = (scope, dest, delta, keyframes, start, end, scale) -> {
+            Vector3f v = eval(scope, keyframes[start].postTarget());
+            dest.set(v.x() * scale, v.y() * scale, v.z() * scale);
+            return dest;
         };
         public static final Interpolation CUBIC = (scope, dest, delta, keyframes, start, end, scale) -> {
-            Vector3f vector3f2 = eval(scope, keyframes[Math.max(0, start - 1)].target());
-            Vector3f vector3f3 = eval(scope, keyframes[start].target());
-            Vector3f vector3f4 = eval(scope, keyframes[end].target());
-            Vector3f vector3f5 = eval(scope, keyframes[Math.min(keyframes.length - 1, end + 1)].target());
-            dest.set(MathHelper.catmullRom(delta, vector3f2.x(), vector3f3.x(), vector3f4.x(), vector3f5.x()) * scale, MathHelper.catmullRom(delta, vector3f2.y(), vector3f3.y(), vector3f4.y(), vector3f5.y()) * scale, MathHelper.catmullRom(delta, vector3f2.z(), vector3f3.z(), vector3f4.z(), vector3f5.z()) * scale);
+            // Control point availability (Blockbench: skip before_plus/after_plus if neighbor has separate pre/post)
+            boolean hasBefore = start > 0 && !keyframes[start].hasSeparatePrePost();
+            boolean hasAfter = end < keyframes.length - 1 && !keyframes[end].hasSeparatePrePost();
+
+            Vector3f p1 = eval(scope, keyframes[start].postTarget());
+            Vector3f p2 = eval(scope, keyframes[end].preTarget());
+            Vector3f p0 = hasBefore ? eval(scope, keyframes[start - 1].postTarget()) : p1;
+            Vector3f p3 = hasAfter ? eval(scope, keyframes[end + 1].preTarget()) : p2;
+
+            dest.set(
+                    MathHelper.catmullRom(delta, p0.x(), p1.x(), p2.x(), p3.x()) * scale,
+                    MathHelper.catmullRom(delta, p0.y(), p1.y(), p2.y(), p3.y()) * scale,
+                    MathHelper.catmullRom(delta, p0.z(), p1.z(), p2.z(), p3.z()) * scale
+            );
             return dest;
         };
     }
@@ -43,7 +56,7 @@ public record AnimateTransformation(Target target, VBUKeyFrame[] keyframes) {
         public static final Target OFFSET = (part, vec3) -> ((IModelPart)((Object)part)).viaBedrockUtility$setOffset(vec3);
         public static final Target ROTATE = (part, vec3) -> ((IModelPart)((Object)part)).viaBedrockUtility$setAngles(vec3);
         public static final Target SCALE = (part, vec3) -> {
-            part.xScale = -vec3.x;
+            part.xScale = vec3.x;
             part.yScale = vec3.y;
             part.zScale = vec3.z;
         };

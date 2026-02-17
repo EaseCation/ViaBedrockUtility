@@ -58,6 +58,13 @@ public class CustomEntityTicker {
     @Setter @Getter
     private Float scale;
 
+    @Getter
+    private Scope lastExecutionScope;
+
+    // animation identifier → condition expression (for per-frame blend weight evaluation)
+    @Getter
+    private final Map<String, String> animationIdToCondition = new HashMap<>();
+
     private boolean hasPlayInitAnimation;
 
     public CustomEntityTicker(final EntityDefinitions.EntityDefinition entityDefinition) {
@@ -139,6 +146,7 @@ public class CustomEntityTicker {
 
     public void update() {
         final Scope executionScope = this.entityScope.copy();
+        this.lastExecutionScope = executionScope;
         final MutableObjectBinding queryBinding = new MutableObjectBinding();
         if (this.variant != null) {
             queryBinding.set("variant", Value.of(this.variant));
@@ -189,7 +197,7 @@ public class CustomEntityTicker {
 
             final CustomEntityModel<CustomEntityRenderer.CustomEntityRenderState> cModel = (CustomEntityModel<CustomEntityRenderer.CustomEntityRenderState>) GeometryUtil.buildModel(geometry, false, false);
 
-            this.renderer.getModels().add(new CustomEntityRenderer.Model(model.key(), model.geometryValue(), cModel, texture, evalMaterial(executionScope, model.controller())));
+            this.renderer.getModels().add(new CustomEntityRenderer.Model(model.key(), model.geometryValue(), cModel, texture, evalMaterial(executionScope, model.controller()), model.controller()));
             this.availableModels.add(model.key());
         }
         this.renderer.getModels().removeIf(model -> !this.availableModels.contains(model.key()));
@@ -197,22 +205,17 @@ public class CustomEntityTicker {
 
         if (!this.hasPlayInitAnimation) {
             this.entityDefinition.entityData().getScripts().animates().forEach(animate -> {
-                if (!animate.expression().isBlank()) {
-                    try {
-                        final Value conditionResult = MoLangEngine.eval(executionScope, animate.expression());
-                        if (!conditionResult.getAsBoolean()) {
-                            return;
-                        }
-                    } catch (Throwable e) {
-                        ViaBedrockUtilityFabric.LOGGER.warn("Failed to evaluate start animation request condition", e);
-                        return;
-                    }
-                }
-
+                // Register ALL animations unconditionally; condition is evaluated per-frame as blend weight
                 try {
-                    this.renderer.play(this.packManager.getAnimationDefinitions().getAnimations().get(this.entityDefinition.entityData().getAnimations().get(animate.name())));
+                    final String animId = this.entityDefinition.entityData().getAnimations().get(animate.name());
+                    final var animData = this.packManager.getAnimationDefinitions().getAnimations().get(animId);
+                    if (animData != null) {
+                        this.renderer.play(animData);
+                        this.animationIdToCondition.put(animData.animation().getIdentifier(), animate.expression());
+                        ViaBedrockUtilityFabric.LOGGER.info("[Animation] Registered '{}' ({}), condition='{}'", animate.name(), animId, animate.expression());
+                    }
                 } catch (Throwable e) {
-                    ViaBedrockUtilityFabric.LOGGER.warn("Failed to play default start animation.", e);
+                    ViaBedrockUtilityFabric.LOGGER.warn("Failed to register animation: {}", animate.name(), e);
                 }
             });
             this.hasPlayInitAnimation = true;

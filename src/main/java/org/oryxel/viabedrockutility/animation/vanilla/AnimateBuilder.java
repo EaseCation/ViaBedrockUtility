@@ -7,7 +7,6 @@ import org.oryxel.viabedrockutility.animation.element.timestamp.SimpleTimeStamp;
 import org.oryxel.viabedrockutility.util.mojangweirdformat.ValueOrValue;
 
 import java.util.*;
-import java.util.concurrent.ConcurrentLinkedQueue;
 
 import static org.oryxel.viabedrockutility.animation.vanilla.AnimateTransformation.Targets.*;
 import static org.oryxel.viabedrockutility.animation.vanilla.AnimateTransformation.*;
@@ -84,66 +83,39 @@ public class AnimateBuilder {
                 return;
             }
 
-            VBUKeyFrame[] frames = new VBUKeyFrame[rawMap.size()];
             final TreeMap<Float, ValueOrValue<?>> map = (TreeMap<Float, ValueOrValue<?>>) rawMap;
-            final Queue<Map.Entry<Float, ValueOrValue<?>>> entries = new ConcurrentLinkedQueue<>();
-            map.entrySet().forEach(entries::add);
+            List<VBUKeyFrame> frameList = new ArrayList<>();
 
-            int index = 0;
-            String[] past = null;
-            Map.Entry<Float, ValueOrValue<?>> entry;
-            while ((entry = entries.peek()) != null) {
+            for (Map.Entry<Float, ValueOrValue<?>> entry : map.entrySet()) {
                 float timestamp = entry.getKey();
 
                 if (entry.getValue().getValue() instanceof SimpleTimeStamp simple) {
-                    frames[index] = (new VBUKeyFrame(timestamp, simple.value(), Interpolations.CUBIC));
+                    frameList.add(new VBUKeyFrame(timestamp, simple.value(), Interpolations.CUBIC));
                 } else if (entry.getValue().getValue() instanceof ComplexTimeStamp complex) {
-                    // Tf is pre post.... lerp to the next one using post and pre is the starting frame or whatever.
-
-                    Interpolation interpolation = complex.lerpMode().equalsIgnoreCase("catmullrom") ? Interpolations.CUBIC : Interpolations.LINEAR;
-
-                    if (past != null) {
-                        frames[index] = (new VBUKeyFrame(timestamp, past, interpolation));
-                        past = null;
+                    Interpolation interpolation;
+                    switch (complex.lerpMode().toLowerCase(Locale.ROOT)) {
+                        case "catmullrom" -> interpolation = Interpolations.CUBIC;
+                        case "step" -> interpolation = Interpolations.STEP;
+                        default -> interpolation = Interpolations.LINEAR;
                     }
 
-                    if (complex.pre() != null) {
-                        frames[index] = (new VBUKeyFrame(timestamp, complex.pre(), interpolation));
-                    }
+                    String[] pre = complex.pre();
+                    String[] post = complex.post();
+                    boolean hasSeparate = (pre != null && post != null);
 
-                    if (complex.post() != null) {
-                        past = complex.post();
-                    }
-                }
+                    if (pre == null) pre = post;
+                    if (post == null) post = pre;
+                    if (pre == null) continue;
 
-                entries.poll();
-
-                index++;
-            }
-
-            // In case if any frames is null for whatever reason, which does happen.
-            int availableFrames = rawMap.size();
-            for (VBUKeyFrame frame : frames) {
-                if (frame == null) {
-                    availableFrames--;
+                    frameList.add(new VBUKeyFrame(timestamp, pre, post, hasSeparate, interpolation));
                 }
             }
 
-            if (availableFrames < 1) {
+            if (frameList.isEmpty()) {
                 return;
             }
 
-            VBUKeyFrame[] newFrames = new VBUKeyFrame[availableFrames];
-
-            int n = 0;
-            for (VBUKeyFrame oldFrame : frames) {
-                if (oldFrame != null) {
-                    newFrames[n] = oldFrame;
-                    n++;
-                }
-            }
-
-            builder.addBoneAnimation(name, new AnimateTransformation(target, newFrames));
+            builder.addBoneAnimation(name, new AnimateTransformation(target, frameList.toArray(new VBUKeyFrame[0])));
         } else {
             builder.addBoneAnimation(name, new AnimateTransformation(target, new VBUKeyFrame[] {new VBUKeyFrame(0, get(object), AnimateTransformation.Interpolations.CUBIC)}));
         }

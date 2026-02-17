@@ -116,11 +116,11 @@ public record Material(String identifier, String baseIdentifier, MaterialInfo in
             }
 
             if (object.has("blendDst")) {
-                this.blendSrc = object.get("blendDst").getAsString();
+                this.blendDst = object.get("blendDst").getAsString();
             }
 
             if (object.has("depthFunc")) {
-                this.blendSrc = object.get("depthFunc").getAsString();
+                this.depthFunc = object.get("depthFunc").getAsString();
             }
 
             if (ignoreVariants) {
