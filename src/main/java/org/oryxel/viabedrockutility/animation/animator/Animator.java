@@ -55,29 +55,13 @@ public class Animator {
             }
         }
 
+        if (this.baseScope == null) {
+            return;
+        }
+
+        // baseScope already contains complete query bindings from buildFrameScope().
+        // Only overlay animation-specific anim_time/life_time.
         final Scope scope = new LayeredScope(this.baseScope);
-
-        final MutableObjectBinding queryBinding = new MutableObjectBinding();
-        queryBinding.setAllFrom((MutableObjectBinding) this.baseScope.get("query"));
-
-        queryBinding.set("modified_distance_moved", Value.of(state.getDistanceTraveled()));
-        queryBinding.set("modified_move_speed", Value.of(0.7F)); // We don't know this value I think? not yet.
-
-        queryBinding.set("body_y_rotation", Value.of(state.getBodyYaw()));
-        queryBinding.set("body_x_rotation", Value.of(state.getBodyPitch()));
-
-        queryBinding.set("target_x_rotation", Value.of(state.getTargetXRotation()));
-        queryBinding.set("target_y_rotation", Value.of(state.getTargetYRotation()));
-
-        // Register rotation_to_camera query function for billboard effect
-        queryBinding.setFunction("rotation_to_camera", (double arg) -> {
-            if ((int) arg == 0) return (double) state.getRotationToCameraX();
-            if ((int) arg == 1) return (double) state.getRotationToCameraY();
-            return 0.0;
-        });
-
-        scope.set("q", queryBinding);
-        scope.set("query", queryBinding);
 
         if (!this.started) {
             boolean skipThisTick = true;
@@ -90,7 +74,6 @@ public class Animator {
                 this.firstPlay = false;
 
                 this.animationStartMS = System.currentTimeMillis();
-                this.ticker.runPreAnimationTask();
             }
 
             if (this.started && this.data.animation().isResetBeforePlay()) {
@@ -105,16 +88,20 @@ public class Animator {
 
         float runningTime = AnimationHelper.getRunningSeconds(data.animation(), data.compiled(), System.currentTimeMillis() - this.animationStartMS);
 
-        queryBinding.set("anim_time", Value.of(runningTime));
-        queryBinding.set("life_time", Value.of(runningTime));
+        // Override life_time and anim_time with animation-specific values (not entity lifetime)
+        final MutableObjectBinding animQueryBinding = new MutableObjectBinding();
+        animQueryBinding.setAllFrom((MutableObjectBinding) this.baseScope.get("query"));
+        animQueryBinding.set("anim_time", Value.of(runningTime));
+        animQueryBinding.set("life_time", Value.of(runningTime));
+        scope.set("query", animQueryBinding);
+        scope.set("q", animQueryBinding);
 
         AnimationHelper.animate(scope, model, data.compiled(), System.currentTimeMillis() - this.animationStartMS, this.blendWeight, TEMP_VEC);
 
         float runningTimeWithoutLoop = (System.currentTimeMillis() - this.animationStartMS) / 1000F;
         this.tickTimeline(runningTimeWithoutLoop);
 
-        if (runningTimeWithoutLoop >= data.compiled().lengthInSeconds()) {
-            System.out.println("Reset since animation length: " + data.compiled().lengthInSeconds());
+        if (data.compiled().lengthInSeconds() > 0 && runningTimeWithoutLoop >= data.compiled().lengthInSeconds()) {
             this.stop(model);
         }
     }

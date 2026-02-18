@@ -25,6 +25,8 @@ import team.unnamed.mocha.runtime.Scope;
 import team.unnamed.mocha.runtime.value.MutableObjectBinding;
 import team.unnamed.mocha.runtime.value.Value;
 
+import team.unnamed.mocha.parser.ast.Expression;
+
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -64,6 +66,11 @@ public class CustomEntityTicker {
     // animation identifier → condition expression (for per-frame blend weight evaluation)
     @Getter
     private final Map<String, String> animationIdToCondition = new HashMap<>();
+    @Getter
+    private final Map<String, List<Expression>> parsedAnimationConditions = new HashMap<>();
+
+    // Pre-parsed MoLang expressions for initialize and pre_animation scripts
+    private final List<List<Expression>> parsedPreAnimationExpressions = new ArrayList<>();
 
     private boolean hasPlayInitAnimation;
 
@@ -85,14 +92,29 @@ public class CustomEntityTicker {
         this.entityDefinition = entityDefinition;
 
         final MutableObjectBinding variableBinding = new MutableObjectBinding();
+        // Bedrock engine provides gliding_speed_value based on entity movement attribute.
+        // Default to 0.1 (player base movement speed in blocks/tick).
+        variableBinding.set("gliding_speed_value", Value.of(0.1));
         this.entityScope.set("variable", variableBinding);
         this.entityScope.set("v", variableBinding);
+
+        // Pre-parse and execute initialize scripts
         try {
             for (String initExpression : this.entityDefinition.entityData().getScripts().initialize()) {
-                MoLangEngine.eval(this.entityScope, initExpression);
+                final List<Expression> parsed = MoLangEngine.parse(initExpression);
+                MoLangEngine.eval(this.entityScope, parsed);
             }
         } catch (Throwable e) {
             ViaBedrockUtilityFabric.LOGGER.warn("Failed to initialize custom entity variables", e);
+        }
+
+        // Pre-parse pre_animation scripts (evaluated every frame in renderer)
+        for (String expr : this.entityDefinition.entityData().getScripts().pre_animation()) {
+            try {
+                this.parsedPreAnimationExpressions.add(MoLangEngine.parse(expr));
+            } catch (IOException e) {
+                ViaBedrockUtilityFabric.LOGGER.warn("Failed to parse pre_animation expression: {}", expr, e);
+            }
         }
 
         final MutableObjectBinding geometryBinding = new MutableObjectBinding();
@@ -134,20 +156,25 @@ public class CustomEntityTicker {
         this.update();
     }
 
-    public void runPreAnimationTask() {
+    /**
+     * Executes pre_animation scripts once per frame with the given scope containing query bindings.
+     * Variable writes persist via the shared MutableObjectBinding on entityScope.
+     */
+    public void runPreAnimationTask(final Scope frameScope) {
         try {
-            for (String initExpression : this.entityDefinition.entityData().getScripts().pre_animation()) {
-                MoLangEngine.eval(this.entityScope, initExpression);
+            for (List<Expression> parsed : this.parsedPreAnimationExpressions) {
+                MoLangEngine.eval(frameScope, parsed);
             }
         } catch (Throwable e) {
-            ViaBedrockUtilityFabric.LOGGER.warn("Failed to initialize custom entity pre-animation variables", e);
+            ViaBedrockUtilityFabric.LOGGER.warn("Failed to evaluate pre-animation scripts", e);
         }
     }
 
-    public void update() {
-        final Scope executionScope = this.entityScope.copy();
-        this.lastExecutionScope = executionScope;
-        final MutableObjectBinding queryBinding = new MutableObjectBinding();
+    /**
+     * Populates entity-level MoLang query bindings (variant, mark_variant, skin_id, entity flags).
+     * Shared between update() (render controller evaluation) and renderer's buildFrameScope().
+     */
+    public void populateEntityQueries(final MutableObjectBinding queryBinding) {
         if (this.variant != null) {
             queryBinding.set("variant", Value.of(this.variant));
         }
@@ -164,9 +191,16 @@ public class CustomEntityTicker {
                 queryBinding.set(entry.getValue(), Value.of(true));
             }
         }
-        if (entityFlags.contains(ActorFlags.ONFIRE)) { // "on fire" flag has two names in MoLang
+        if (entityFlags.contains(ActorFlags.ONFIRE)) {
             queryBinding.set("is_onfire", Value.of(true));
         }
+    }
+
+    public void update() {
+        final Scope executionScope = this.entityScope.copy();
+        this.lastExecutionScope = executionScope;
+        final MutableObjectBinding queryBinding = new MutableObjectBinding();
+        this.populateEntityQueries(queryBinding);
 
         queryBinding.block();
         executionScope.set("query", queryBinding);
@@ -211,7 +245,14 @@ public class CustomEntityTicker {
                     final var animData = this.packManager.getAnimationDefinitions().getAnimations().get(animId);
                     if (animData != null) {
                         this.renderer.play(animData);
-                        this.animationIdToCondition.put(animData.animation().getIdentifier(), animate.expression());
+                        final String animIdentifier = animData.animation().getIdentifier();
+                        this.animationIdToCondition.put(animIdentifier, animate.expression());
+                        // Pre-parse condition expression for per-frame evaluation
+                        if (animate.expression() != null && !animate.expression().isBlank()) {
+                            try {
+                                this.parsedAnimationConditions.put(animIdentifier, MoLangEngine.parse(animate.expression()));
+                            } catch (IOException ignored) {}
+                        }
                         ViaBedrockUtilityFabric.LOGGER.info("[Animation] Registered '{}' ({}), condition='{}'", animate.name(), animId, animate.expression());
                     }
                 } catch (Throwable e) {

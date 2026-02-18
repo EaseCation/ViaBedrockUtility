@@ -15,7 +15,7 @@ public class AnimateBuilder {
     public static VBUAnimation build(final Animation animation) {
         float length = animation.getAnimationLength();
         if (length == -1) {
-            float largestTimeStamp = 1;
+            float largestTimeStamp = 0;
             for (Cube cube : animation.getCubes()) {
                 if (cube.getPosition() != null) {
                     if (cube.getPosition().getValue() instanceof TreeMap<?, ?> rawMap) {
@@ -51,7 +51,7 @@ public class AnimateBuilder {
                 }
             }
 
-            if (largestTimeStamp != 1) {
+            if (largestTimeStamp > 0) {
                 largestTimeStamp += 0.01F;
             }
             length = largestTimeStamp;

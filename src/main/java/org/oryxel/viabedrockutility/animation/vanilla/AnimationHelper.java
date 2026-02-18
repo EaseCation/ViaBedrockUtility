@@ -61,17 +61,23 @@ public class AnimationHelper {
 
     private static float getRunningSeconds(VBUAnimation animation, long runningTime) {
         float f = (float)runningTime / 1000.0f;
-        return animation.looping() ? f % animation.lengthInSeconds() : f;
+        if (!animation.looping() || animation.lengthInSeconds() <= 0) {
+            return f;
+        }
+        return f % animation.lengthInSeconds();
     }
 
     public static float getRunningSeconds(Animation animation, VBUAnimation vbu, long runningTime) {
         float f = (float)runningTime / 1000.0f;
-        return animation.getLoop().getValue().equals(true) ? f % vbu.lengthInSeconds() : f;
+        if (!animation.getLoop().getValue().equals(true) || vbu.lengthInSeconds() <= 0) {
+            return f;
+        }
+        return f % vbu.lengthInSeconds();
     }
 
     private static Optional<ModelPart> getPartByName(List<ModelPart> parts, String name) {
         for (ModelPart part : parts) {
-            if (((IModelPart)((Object)part)).viaBedrockUtility$getName().equals(name) && part.isEmpty()) {
+            if (((IModelPart)((Object)part)).viaBedrockUtility$getName().equalsIgnoreCase(name) && part.isEmpty()) {
                 return Optional.of(part);
             }
         }

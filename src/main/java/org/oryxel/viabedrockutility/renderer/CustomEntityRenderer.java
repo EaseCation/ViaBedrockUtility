@@ -28,10 +28,14 @@ import org.oryxel.viabedrockutility.entity.CustomEntityTicker;
 import org.oryxel.viabedrockutility.fabric.ViaBedrockUtilityFabric;
 import org.oryxel.viabedrockutility.material.data.Material;
 import org.oryxel.viabedrockutility.mixin.interfaces.IModelPart;
+import org.oryxel.viabedrockutility.mocha.LayeredScope;
 import org.oryxel.viabedrockutility.mocha.MoLangEngine;
 import org.oryxel.viabedrockutility.pack.definitions.AnimationDefinitions;
 import org.oryxel.viabedrockutility.renderer.model.CustomEntityModel;
+import team.unnamed.mocha.parser.ast.Expression;
 import team.unnamed.mocha.runtime.Scope;
+import team.unnamed.mocha.runtime.value.MutableObjectBinding;
+import team.unnamed.mocha.runtime.value.Value;
 
 import java.io.IOException;
 import java.util.List;
@@ -53,6 +57,12 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
     private long headStableStartMs;         // when head last became "stable"
     private boolean rotationInitialized;
 
+    // Position tracking for velocity/distance (INTERACTION entities don't have velocity data)
+    private double lastPosX, lastPosY, lastPosZ;
+    private float accumulatedDistance;
+    private long lastUpdateTimeNano;
+    private boolean positionInitialized;
+
     public CustomEntityRenderer(final CustomEntityTicker ticker, final List<Model> models, EntityRendererFactory.Context context) {
         super(context);
         this.models = models;
@@ -70,6 +80,13 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
             }
             ViaBedrockUtilityFabric.LOGGER.info("[Render] render() models={} animators={} keys=[{}]", this.models.size(), this.animators.size(), sb.toString().trim());
         }
+
+        // Build per-frame scope with all query bindings, execute pre_animation, set up animators
+        final Scope frameScope = this.buildFrameScope(state);
+        this.ticker.runPreAnimationTask(frameScope);
+        this.animators.values().forEach(a -> a.setBaseScope(frameScope));
+        this.evaluateAnimationConditions(frameScope);
+
         float s = (this.ticker.getScale() != null) ? this.ticker.getScale() : 1.0F;
         for (Model model : this.models) {
             matrices.push();
@@ -77,23 +94,6 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
             this.setupTransforms(state, matrices);
             matrices.scale(-s, -s, s);
             matrices.translate(0.0F, -1.501F, 0.0F);
-            // Evaluate animate conditions per-frame and update blend weights
-            final Scope conditionScope = this.ticker.getLastExecutionScope();
-            if (conditionScope != null) {
-                this.animators.forEach((animId, animator) -> {
-                    String condition = this.ticker.getAnimationIdToCondition().get(animId);
-                    if (condition != null && !condition.isBlank()) {
-                        try {
-                            float weight = (float) MoLangEngine.eval(conditionScope, condition).getAsNumber();
-                            animator.setBlendWeight(weight);
-                        } catch (Throwable e) {
-                            animator.setBlendWeight(0);
-                        }
-                    } else {
-                        animator.setBlendWeight(1.0f);
-                    }
-                });
-            }
 
             this.animators.values().forEach(animator -> {
                 try {
@@ -105,16 +105,12 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
 
             // Apply part_visibility
             if (model.controller() != null && !model.controller().partVisibility().isEmpty()) {
-                final Scope scope = this.ticker.getLastExecutionScope();
-                if (scope != null) {
-                    applyPartVisibility(model.model(), model.controller().partVisibility(), scope);
-                }
+                applyPartVisibility(model.model(), model.controller().partVisibility(), frameScope);
             }
 
             try {
                 RenderLayer renderLayer = model.material.info().getVariants().get("skinning_color").build().apply(model.texture);
                 if (renderLayer != null) {
-                    // Apply lighting properties
                     int effectiveLight = state.light;
                     if (model.controller() != null && model.controller().ignoreLighting()) {
                         effectiveLight = LightmapTextureManager.MAX_LIGHT_COORDINATE;
@@ -138,6 +134,12 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
     //?} else {
     /*@Override
     public void render(CustomEntityRenderState state, MatrixStack matrices, VertexConsumerProvider vertexConsumers, int light) {
+        // Build per-frame scope with all query bindings, execute pre_animation, set up animators
+        final Scope frameScope = this.buildFrameScope(state);
+        this.ticker.runPreAnimationTask(frameScope);
+        this.animators.values().forEach(a -> a.setBaseScope(frameScope));
+        this.evaluateAnimationConditions(frameScope);
+
         float s = (this.ticker.getScale() != null) ? this.ticker.getScale() : 1.0F;
         for (Model model : this.models) {
             matrices.push();
@@ -145,24 +147,6 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
             this.setupTransforms(state, matrices);
             matrices.scale(-s, -s, s);
             matrices.translate(0.0F, -1.501F, 0.0F);
-
-            // Evaluate animate conditions per-frame and update blend weights
-            final Scope conditionScope = this.ticker.getLastExecutionScope();
-            if (conditionScope != null) {
-                this.animators.forEach((animId, animator) -> {
-                    String condition = this.ticker.getAnimationIdToCondition().get(animId);
-                    if (condition != null && !condition.isBlank()) {
-                        try {
-                            float weight = (float) MoLangEngine.eval(conditionScope, condition).getAsNumber();
-                            animator.setBlendWeight(weight);
-                        } catch (Throwable e) {
-                            animator.setBlendWeight(0);
-                        }
-                    } else {
-                        animator.setBlendWeight(1.0f);
-                    }
-                });
-            }
 
             this.animators.values().forEach(animator -> {
                 try {
@@ -174,15 +158,11 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
 
             // Apply part_visibility
             if (model.controller() != null && !model.controller().partVisibility().isEmpty()) {
-                final Scope scope = this.ticker.getLastExecutionScope();
-                if (scope != null) {
-                    applyPartVisibility(model.model(), model.controller().partVisibility(), scope);
-                }
+                applyPartVisibility(model.model(), model.controller().partVisibility(), frameScope);
             }
 
             RenderLayer renderLayer = model.material.info().getVariants().get("skinning_color").build().apply(model.texture);
             if (renderLayer != null) {
-                // Apply lighting properties
                 int effectiveLight = light;
                 if (model.controller() != null && model.controller().ignoreLighting()) {
                     effectiveLight = LightmapTextureManager.MAX_LIGHT_COORDINATE;
@@ -255,6 +235,50 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
         state.setTargetXRotation(state.bodyPitch);
         state.setTargetYRotation(MathHelper.wrapDegrees(state.yaw - state.bodyYaw));
 
+        // Per-frame entity state for MoLang queries
+        state.setEntityOnGround(entity.isOnGround());
+        state.setEntityAlive(entity.isAlive());
+        state.setEntityLifeTime(entity.age / 20.0f);
+
+        // Position-based velocity/distance tracking
+        // INTERACTION/ITEM_DISPLAY entities don't receive velocity packets,
+        // so we compute speed from position deltas between frames.
+        final Vec3d currentPos = entity.getLerpedPos(tickDelta);
+        if (!this.positionInitialized) {
+            this.lastPosX = currentPos.x;
+            this.lastPosY = currentPos.y;
+            this.lastPosZ = currentPos.z;
+            this.lastUpdateTimeNano = System.nanoTime();
+            this.positionInitialized = true;
+        }
+
+        final long nowNano = System.nanoTime();
+        double deltaTimeSec = (nowNano - this.lastUpdateTimeNano) / 1_000_000_000.0;
+        if (deltaTimeSec < 0.001) deltaTimeSec = 0.05; // avoid div-by-zero, default to 1 tick
+
+        final double deltaX = currentPos.x - this.lastPosX;
+        final double deltaY = currentPos.y - this.lastPosY;
+        final double deltaZ = currentPos.z - this.lastPosZ;
+        final double horizontalDist = Math.sqrt(deltaX * deltaX + deltaZ * deltaZ);
+
+        this.accumulatedDistance += (float) horizontalDist;
+
+        // Convert to blocks/tick (Bedrock unit: 1 tick = 0.05s)
+        final float groundSpeed = (float) (horizontalDist / deltaTimeSec * 0.05);
+        final float verticalSpeed = (float) (deltaY / deltaTimeSec * 0.05);
+
+        this.lastPosX = currentPos.x;
+        this.lastPosY = currentPos.y;
+        this.lastPosZ = currentPos.z;
+        this.lastUpdateTimeNano = nowNano;
+
+        state.distanceTraveled = this.accumulatedDistance;
+        state.setPositionDeltaX(deltaX);
+        state.setPositionDeltaY(deltaY);
+        state.setPositionDeltaZ(deltaZ);
+        state.setGroundSpeed(groundSpeed);
+        state.setVerticalSpeed(verticalSpeed);
+
         // Calculate rotation_to_camera for billboard effect
         final var camera = MinecraftClient.getInstance().gameRenderer.getCamera();
         //? if >=1.21.6 {
@@ -266,13 +290,84 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
         final double dx = cameraPos.x - camEntityPos.x;
         final double dy = cameraPos.y - camEntityPos.y;
         final double dz = cameraPos.z - camEntityPos.z;
-        final double horizontalDist = Math.sqrt(dx * dx + dz * dz);
-        state.setRotationToCameraX(-(float) Math.toDegrees(Math.atan2(dy, horizontalDist)));
+        final double cameraHorizontalDist = Math.sqrt(dx * dx + dz * dz);
+        state.setRotationToCameraX(-(float) Math.toDegrees(Math.atan2(dy, cameraHorizontalDist)));
         state.setRotationToCameraY(-(float) (Math.toDegrees(Math.atan2(dx, dz)) + state.bodyYaw - 180.0));
+
+        state.setDistanceFromCamera(Math.sqrt(dx * dx + dy * dy + dz * dz));
     }
 
     private void setupTransforms(CustomEntityRenderState state, MatrixStack matrices) {
         matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(180 - state.bodyYaw));
+    }
+
+    /**
+     * Builds a per-frame scope with complete query bindings (entity-level + per-frame).
+     * Uses LayeredScope on top of entityScope to avoid expensive deep copy.
+     */
+    private Scope buildFrameScope(CustomEntityRenderState state) {
+        final LayeredScope frameScope = new LayeredScope(this.ticker.getEntityScope());
+
+        final MutableObjectBinding queryBinding = new MutableObjectBinding();
+
+        // Entity-level queries (variant, flags) from ticker
+        this.ticker.populateEntityQueries(queryBinding);
+
+        // Per-frame movement and state queries
+        queryBinding.set("modified_distance_moved", Value.of(state.getDistanceTraveled()));
+        queryBinding.set("modified_move_speed", Value.of(state.getGroundSpeed()));
+        queryBinding.set("is_on_ground", Value.of(state.isEntityOnGround()));
+        queryBinding.set("is_alive", Value.of(state.isEntityAlive()));
+        queryBinding.set("life_time", Value.of(state.getEntityLifeTime()));
+        queryBinding.set("ground_speed", Value.of(state.getGroundSpeed()));
+        queryBinding.set("vertical_speed", Value.of(state.getVerticalSpeed()));
+        queryBinding.set("distance_from_camera", Value.of(state.getDistanceFromCamera()));
+
+        // Rotation queries
+        queryBinding.set("body_y_rotation", Value.of(state.getBodyYaw()));
+        queryBinding.set("body_x_rotation", Value.of(state.getBodyPitch()));
+        queryBinding.set("target_x_rotation", Value.of(state.getTargetXRotation()));
+        queryBinding.set("target_y_rotation", Value.of(state.getTargetYRotation()));
+        queryBinding.set("head_x_rotation", Value.of(state.getTargetXRotation()));
+        queryBinding.set("head_y_rotation", Value.of(state.getTargetYRotation()));
+
+        // Function-type queries
+        queryBinding.setFunction("position_delta", (double arg) -> {
+            int axis = (int) arg;
+            if (axis == 0) return state.getPositionDeltaX();
+            if (axis == 1) return state.getPositionDeltaY();
+            if (axis == 2) return state.getPositionDeltaZ();
+            return 0.0;
+        });
+        queryBinding.setFunction("rotation_to_camera", (double arg) -> {
+            if ((int) arg == 0) return (double) state.getRotationToCameraX();
+            if ((int) arg == 1) return (double) state.getRotationToCameraY();
+            return 0.0;
+        });
+
+        frameScope.set("query", queryBinding);
+        frameScope.set("q", queryBinding);
+
+        return frameScope;
+    }
+
+    /**
+     * Evaluates animation blend weight conditions using pre-parsed expressions.
+     */
+    private void evaluateAnimationConditions(final Scope frameScope) {
+        this.animators.forEach((animId, animator) -> {
+            final List<Expression> parsedCondition = this.ticker.getParsedAnimationConditions().get(animId);
+            if (parsedCondition != null) {
+                try {
+                    float weight = (float) MoLangEngine.eval(frameScope, parsedCondition).getAsNumber();
+                    animator.setBlendWeight(weight);
+                } catch (Throwable e) {
+                    animator.setBlendWeight(0);
+                }
+            } else {
+                animator.setBlendWeight(1.0f);
+            }
+        });
     }
 
     @Override
@@ -297,6 +392,16 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
         private float targetXRotation;
         @Setter
         private float targetYRotation;
+        // Per-frame entity state for MoLang queries
+        @Setter private boolean entityOnGround;
+        @Setter private boolean entityAlive;
+        @Setter private float entityLifeTime;
+        @Setter private double positionDeltaX;
+        @Setter private double positionDeltaY;
+        @Setter private double positionDeltaZ;
+        @Setter private float groundSpeed;
+        @Setter private float verticalSpeed;
+        @Setter private double distanceFromCamera;
     }
 
     private void applyPartVisibility(CustomEntityModel<?> entityModel, Map<String, String> pv, Scope scope) {
