@@ -165,14 +165,18 @@ public final class GeometryUtil {
             // Bedrock UP/DOWN texture regions are swapped vs Java; swap UV if both faces exist (box UV)
             Float[] uv = map.getMap().get(org.cube.converter.util.element.Direction.UP);
             if (uv == null) uv = map.getMap().get(org.cube.converter.util.element.Direction.DOWN);
-            sides[s++] = new ModelPart.Quad(new ModelPart.Vertex[]{vertex6, vertex5, vertex, vertex2}, uv[0], uv[1], uv[2], uv[3], uvWidth, uvHeight, mirror, Direction.DOWN);
+            // Swap both u1↔u2 and v1↔v2 to compensate for scale(-1,-1,1): X negation flips U,
+            // and Y negation flips the viewing side which flips V on horizontal faces
+            sides[s++] = new ModelPart.Quad(new ModelPart.Vertex[]{vertex6, vertex5, vertex, vertex2}, uv[2], uv[3], uv[0], uv[1], uvWidth, uvHeight, mirror, Direction.DOWN);
         }
 
         if (set.contains(Direction.UP)) {
             // Bedrock UP/DOWN texture regions are swapped vs Java; swap UV if both faces exist (box UV)
             Float[] uv = map.getMap().get(org.cube.converter.util.element.Direction.DOWN);
             if (uv == null) uv = map.getMap().get(org.cube.converter.util.element.Direction.UP);
-            sides[s++] = new ModelPart.Quad(new ModelPart.Vertex[]{vertex3, vertex4, vertex8, vertex7}, uv[0], uv[1], uv[2], uv[3], uvWidth, uvHeight, mirror, Direction.UP);
+            // Swap both u1↔u2 and v1↔v2 to compensate for scale(-1,-1,1): X negation flips U,
+            // and Y negation flips the viewing side which flips V on horizontal faces
+            sides[s++] = new ModelPart.Quad(new ModelPart.Vertex[]{vertex3, vertex4, vertex8, vertex7}, uv[2], uv[3], uv[0], uv[1], uvWidth, uvHeight, mirror, Direction.UP);
         }
 
         if (set.contains(Direction.WEST)) {

@@ -133,6 +133,7 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
 
             matrices.pop();
         }
+        super.render(state, matrices, queue, cameraState);
     }
     //?} else {
     /*@Override
@@ -193,6 +194,7 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
 
             matrices.pop();
         }
+        super.render(state, matrices, vertexConsumers, light);
     }
     *///?}
 
