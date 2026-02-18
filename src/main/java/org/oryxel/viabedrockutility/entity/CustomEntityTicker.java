@@ -93,8 +93,9 @@ public class CustomEntityTicker {
 
         final MutableObjectBinding variableBinding = new MutableObjectBinding();
         // Bedrock engine provides gliding_speed_value based on entity movement attribute.
-        // Default to 0.1 (player base movement speed in blocks/tick).
-        variableBinding.set("gliding_speed_value", Value.of(0.1));
+        // Default to typical player walking speed in blocks/second (~4.317),
+        // matching the unit used by query.modified_move_speed (blocks/second).
+        variableBinding.set("gliding_speed_value", Value.of(4.317));
         this.entityScope.set("variable", variableBinding);
         this.entityScope.set("v", variableBinding);
 

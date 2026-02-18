@@ -57,11 +57,11 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
     private long headStableStartMs;         // when head last became "stable"
     private boolean rotationInitialized;
 
-    // Position tracking for velocity/distance (INTERACTION entities don't have velocity data)
-    private double lastPosX, lastPosY, lastPosZ;
-    private float accumulatedDistance;
-    private long lastUpdateTimeNano;
-    private boolean positionInitialized;
+    // Per-tick movement tracking with exponential smoothing (like Java LimbAnimator)
+    private int lastEntityAge = -1;
+    private float smoothedSpeed;       // blocks/tick, smoothed
+    private float smoothedVerticalSpeed; // blocks/tick, smoothed
+    private float smoothedDistance;     // accumulated smoothed distance in blocks
 
     public CustomEntityRenderer(final CustomEntityTicker ticker, final List<Model> models, EntityRendererFactory.Context context) {
         super(context);
@@ -240,44 +240,31 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
         state.setEntityAlive(entity.isAlive());
         state.setEntityLifeTime(entity.age / 20.0f);
 
-        // Position-based velocity/distance tracking
-        // INTERACTION/ITEM_DISPLAY entities don't receive velocity packets,
-        // so we compute speed from position deltas between frames.
-        final Vec3d currentPos = entity.getLerpedPos(tickDelta);
-        if (!this.positionInitialized) {
-            this.lastPosX = currentPos.x;
-            this.lastPosY = currentPos.y;
-            this.lastPosZ = currentPos.z;
-            this.lastUpdateTimeNano = System.nanoTime();
-            this.positionInitialized = true;
+        // Per-tick movement tracking with exponential smoothing (like Java LimbAnimator).
+        // Only update once per tick (when entity.age changes) to avoid per-frame spikes.
+        // INTERACTION/ITEM_DISPLAY entities don't receive velocity packets, so we compute
+        // speed from lastX/X deltas which are updated per server tick.
+        if (entity.age != this.lastEntityAge) {
+            final double dx = entity.getX() - entity.lastX;
+            final double dy = entity.getY() - entity.lastY;
+            final double dz = entity.getZ() - entity.lastZ;
+            final float tickMovement = (float) Math.sqrt(dx * dx + dz * dz);
+
+            // Exponential smoothing (factor 0.4, same as Java LimbAnimator)
+            this.smoothedSpeed += (tickMovement - this.smoothedSpeed) * 0.4f;
+            this.smoothedDistance += this.smoothedSpeed;
+            this.smoothedVerticalSpeed += ((float) dy - this.smoothedVerticalSpeed) * 0.4f;
+
+            this.lastEntityAge = entity.age;
         }
 
-        final long nowNano = System.nanoTime();
-        double deltaTimeSec = (nowNano - this.lastUpdateTimeNano) / 1_000_000_000.0;
-        if (deltaTimeSec < 0.001) deltaTimeSec = 0.05; // avoid div-by-zero, default to 1 tick
-
-        final double deltaX = currentPos.x - this.lastPosX;
-        final double deltaY = currentPos.y - this.lastPosY;
-        final double deltaZ = currentPos.z - this.lastPosZ;
-        final double horizontalDist = Math.sqrt(deltaX * deltaX + deltaZ * deltaZ);
-
-        this.accumulatedDistance += (float) horizontalDist;
-
-        // Convert to blocks/tick (Bedrock unit: 1 tick = 0.05s)
-        final float groundSpeed = (float) (horizontalDist / deltaTimeSec * 0.05);
-        final float verticalSpeed = (float) (deltaY / deltaTimeSec * 0.05);
-
-        this.lastPosX = currentPos.x;
-        this.lastPosY = currentPos.y;
-        this.lastPosZ = currentPos.z;
-        this.lastUpdateTimeNano = nowNano;
-
-        state.distanceTraveled = this.accumulatedDistance;
-        state.setPositionDeltaX(deltaX);
-        state.setPositionDeltaY(deltaY);
-        state.setPositionDeltaZ(deltaZ);
-        state.setGroundSpeed(groundSpeed);
-        state.setVerticalSpeed(verticalSpeed);
+        state.distanceTraveled = this.smoothedDistance;
+        state.setPositionDeltaX(entity.getX() - entity.lastX);
+        state.setPositionDeltaY(entity.getY() - entity.lastY);
+        state.setPositionDeltaZ(entity.getZ() - entity.lastZ);
+        // Convert blocks/tick to blocks/second for MoLang query values
+        state.setGroundSpeed(this.smoothedSpeed * 20.0f);
+        state.setVerticalSpeed(this.smoothedVerticalSpeed * 20.0f);
 
         // Calculate rotation_to_camera for billboard effect
         final var camera = MinecraftClient.getInstance().gameRenderer.getCamera();
