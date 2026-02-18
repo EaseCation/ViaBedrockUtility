@@ -14,6 +14,7 @@ import net.minecraft.entity.Entity;
 import org.oryxel.viabedrockutility.ViaBedrockUtility;
 import org.oryxel.viabedrockutility.entity.CustomEntityTicker;
 import org.oryxel.viabedrockutility.fabric.ViaBedrockUtilityFabric;
+import org.oryxel.viabedrockutility.mixin.interfaces.ICustomPlayerRendererHolder;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -59,6 +60,10 @@ public abstract class EntityRenderDispatcherMixin {
     // custom renderer stored in the state during Phase 1's updateRenderState().
     @Inject(method = "getRenderer(Lnet/minecraft/client/render/entity/state/EntityRenderState;)Lnet/minecraft/client/render/entity/EntityRenderer;", at = @At("HEAD"), cancellable = true)
     public <S extends EntityRenderState> void getRendererFromState(S state, CallbackInfoReturnable<EntityRenderer<?, ? super S>> cir) {
+        if (state instanceof ICustomPlayerRendererHolder holder && holder.viaBedrockUtility$getCustomPlayerRenderer() != null) {
+            cir.setReturnValue((EntityRenderer<?, ? super S>) holder.viaBedrockUtility$getCustomPlayerRenderer());
+            return;
+        }
         if (state instanceof CustomEntityRenderer.CustomEntityRenderState customState && customState.getCustomRenderer() != null) {
             cir.setReturnValue((EntityRenderer<?, ? super S>) customState.getCustomRenderer());
         }

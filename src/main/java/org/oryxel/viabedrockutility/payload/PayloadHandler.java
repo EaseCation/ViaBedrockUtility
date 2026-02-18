@@ -46,6 +46,7 @@ public class PayloadHandler {
     protected final Map<UUID, EntityRenderer<?, ?>> cachedPlayerRenderers = new ConcurrentHashMap<>();
     protected final Map<UUID, Identifier> cachedPlayerCapes = new ConcurrentHashMap<>();
     protected final Map<UUID, SkinInfo> cachedSkinInfo = new ConcurrentHashMap<>();
+    protected final Map<UUID, CachedPlayerSkin> cachedPlayerSkins = new ConcurrentHashMap<>();
     protected PackManager packManager;
 
     public void handle(final BasePayload payload) {
@@ -97,7 +98,7 @@ public class PayloadHandler {
 
         final PlayerSkinBuilder builder = new PlayerSkinBuilder(entry.getSkinTextures());
         //? if >=1.21.9 {
-        builder.cape = new AssetInfo.TextureAssetInfo(payload.getIdentifier());
+        builder.cape = new AssetInfo.TextureAssetInfo(payload.getIdentifier(), payload.getIdentifier());
         //?} else {
         /*builder.capeTexture = payload.getIdentifier();
         *///?}
@@ -127,28 +128,34 @@ public class PayloadHandler {
 
         final NativeImage skinImage = ImageUtil.toNativeImage(info.getData(), info.getWidth(), info.getHeight());
         if (skinImage == null) {
+            ViaBedrockUtilityFabric.LOGGER.error("[Skin] toNativeImage returned null for {}", payload.getPlayerUuid());
             return;
         }
+        ViaBedrockUtilityFabric.LOGGER.info("[Skin] NativeImage created for {} ({}x{})", payload.getPlayerUuid(), info.getWidth(), info.getHeight());
 
         final MinecraftClient client = MinecraftClient.getInstance();
 
         final Identifier identifier = Identifier.of(ViaBedrockUtilityFabric.MOD_ID, payload.getPlayerUuid().toString());
         client.getTextureManager().registerTexture(identifier, new NativeImageBackedTexture(() -> identifier.toString() + skinImage.hashCode(), skinImage));
+        ViaBedrockUtilityFabric.LOGGER.info("[Skin] Texture registered: {}", identifier);
 
         if (client.getNetworkHandler() != null) {
             final PlayerListEntry entry = client.getNetworkHandler().getPlayerListEntry(payload.getPlayerUuid());
+            ViaBedrockUtilityFabric.LOGGER.info("[Skin] PlayerListEntry lookup for {}: {}", payload.getPlayerUuid(), entry != null ? entry.getProfile().name() : "NOT FOUND");
 
             // If we can still get player list entry then use this to set skin still a good idea!
             if (entry != null) {
                 final PlayerSkinBuilder builder = new PlayerSkinBuilder(entry.getSkinTextures());
                 //? if >=1.21.9 {
-                builder.body = new AssetInfo.TextureAssetInfo(identifier);
+                builder.body = new AssetInfo.TextureAssetInfo(identifier, identifier);
                 //?} else {
                 /*builder.texture = identifier;
                 *///?}
 
                 ((PlayerSkinFieldAccessor)entry).setPlayerSkin(builder::build);
             }
+        } else {
+            ViaBedrockUtilityFabric.LOGGER.warn("[Skin] NetworkHandler is null!");
         }
 
         // Ex: skinResourcePatch={"geometry":{"default":"geometry.humanoid.custom.1742391406.1704"}}
@@ -157,9 +164,10 @@ public class PayloadHandler {
             requiredGeometry = JsonParser.parseString(info.getResourcePatch()).getAsJsonObject()
                     .getAsJsonObject("geometry").get("default").getAsString();
         } catch (Exception ignored) {}
+        ViaBedrockUtilityFabric.LOGGER.info("[Skin] requiredGeometry={} resourcePatch={}", requiredGeometry, info.getResourcePatch());
 
         // Hardcoded I know...
-        boolean slim = requiredGeometry != null && "geometry.humanoid.customSlim".contains(requiredGeometry);
+        boolean slim = requiredGeometry != null && requiredGeometry.startsWith("geometry.humanoid.customSlim");
 
         PlayerEntityModel model = null;
         if (!info.getGeometryRaw().isEmpty()) {
@@ -180,29 +188,30 @@ public class PayloadHandler {
                     }
 
                     model = (PlayerEntityModel) GeometryUtil.buildModel(geometry, true, slim);
+                    ViaBedrockUtilityFabric.LOGGER.info("[Skin] Built custom geometry model for {}", payload.getPlayerUuid());
                 }
-            } catch (final Exception ignored) {
+            } catch (final Exception e) {
+                ViaBedrockUtilityFabric.LOGGER.error("[Skin] Failed to parse geometry for {}: {}", payload.getPlayerUuid(), e.getMessage());
             }
         }
 
         if (model == null) {
             if (requiredGeometry == null) {
+                ViaBedrockUtilityFabric.LOGGER.warn("[Skin] requiredGeometry is null, returning early for {}", payload.getPlayerUuid());
                 return;
             }
 
             boolean found = false;
 
-            // HARDCODED_GEOMETRY_IDENTIFIERS.contains(requiredGeometry) won't work which is weird.
-            // By the way for the same reason requiredGeometry.equals(identifier) won't work either but identifier.equals(requiredGeometry) works!
             for (final String i : HARDCODED_GEOMETRY_IDENTIFIERS) {
-                if (i.equals(requiredGeometry)) {
-                    requiredGeometry = i;
+                if (i.equals(requiredGeometry) || requiredGeometry.startsWith(i + ".")) {
                     found = true;
                     break;
                 }
             }
 
             if (!found) {
+                ViaBedrockUtilityFabric.LOGGER.warn("[Skin] Geometry '{}' not in hardcoded list, returning early for {}", requiredGeometry, payload.getPlayerUuid());
                 return;
             }
         }
@@ -210,6 +219,7 @@ public class PayloadHandler {
         if (model == null) {
             // This is likely a classic skin with hardcoded identifier! TODO: 128x128
             model = new PlayerEntityModel(PlayerEntityModel.getTexturedModelData(Dilation.NONE, slim).getRoot().createPart(64, 64), slim);
+            ViaBedrockUtilityFabric.LOGGER.info("[Skin] Using default player model (slim={}) for {}", slim, payload.getPlayerUuid());
         }
 
         //? if >=1.21.9 {
@@ -224,6 +234,8 @@ public class PayloadHandler {
                 client.textRenderer);
         *///?}
         this.cachedPlayerRenderers.put(payload.getPlayerUuid(), new CustomPlayerRenderer(entityContext, model, slim, identifier));
+        this.cachedPlayerSkins.put(payload.getPlayerUuid(), new CachedPlayerSkin(identifier, slim));
+        ViaBedrockUtilityFabric.LOGGER.info("[Skin] CustomPlayerRenderer created for {}", payload.getPlayerUuid());
 
         if (client.getNetworkHandler() == null) {
             return;
@@ -235,7 +247,7 @@ public class PayloadHandler {
         if (entry != null) {
             final PlayerSkinBuilder builder = new PlayerSkinBuilder(entry.getSkinTextures());
             //? if >=1.21.9 {
-            builder.body = new AssetInfo.TextureAssetInfo(identifier);
+            builder.body = new AssetInfo.TextureAssetInfo(identifier, identifier);
             builder.model = slim ? PlayerSkinType.SLIM : PlayerSkinType.WIDE;
             //?} else {
             /*builder.texture = identifier;
@@ -243,6 +255,9 @@ public class PayloadHandler {
             *///?}
 
             ((PlayerSkinFieldAccessor)entry).setPlayerSkin(builder::build);
+            ViaBedrockUtilityFabric.LOGGER.info("[Skin] Final skin applied to PlayerListEntry for {}", payload.getPlayerUuid());
+        } else {
+            ViaBedrockUtilityFabric.LOGGER.warn("[Skin] Final PlayerListEntry NOT FOUND for {}", payload.getPlayerUuid());
         }
     }
 
@@ -293,6 +308,24 @@ public class PayloadHandler {
                 }
             }
             return true;
+        }
+    }
+
+    public void removePlayerCache(UUID uuid) {
+        cachedPlayerRenderers.remove(uuid);
+        cachedPlayerCapes.remove(uuid);
+        cachedPlayerSkins.remove(uuid);
+        cachedSkinInfo.remove(uuid);
+    }
+
+    @Getter
+    public static class CachedPlayerSkin {
+        private final Identifier textureId;
+        private final boolean slim;
+
+        public CachedPlayerSkin(Identifier textureId, boolean slim) {
+            this.textureId = textureId;
+            this.slim = slim;
         }
     }
 }

@@ -213,7 +213,7 @@ public class CustomEntityTicker {
             return;
         }
 
-        ViaBedrockUtilityFabric.LOGGER.info("[Entity] update(): render controller changed, evaluatedModels={}", this.models.size());
+        ViaBedrockUtilityFabric.LOGGER.debug("[Entity] update(): render controller changed, evaluatedModels={}", this.models.size());
         final Set<String> old = new HashSet<>(this.availableModels);
         this.availableModels.clear();
         for (EvaluatedModel model : this.models) {
@@ -236,7 +236,7 @@ public class CustomEntityTicker {
             this.availableModels.add(model.key());
         }
         this.renderer.getModels().removeIf(model -> !this.availableModels.contains(model.key()));
-        ViaBedrockUtilityFabric.LOGGER.info("[Entity] update(): final renderer models={}", this.renderer.getModels().size());
+        ViaBedrockUtilityFabric.LOGGER.debug("[Entity] update(): final renderer models={}", this.renderer.getModels().size());
 
         if (!this.hasPlayInitAnimation) {
             this.entityDefinition.entityData().getScripts().animates().forEach(animate -> {
@@ -254,7 +254,7 @@ public class CustomEntityTicker {
                                 this.parsedAnimationConditions.put(animIdentifier, MoLangEngine.parse(animate.expression()));
                             } catch (IOException ignored) {}
                         }
-                        ViaBedrockUtilityFabric.LOGGER.info("[Animation] Registered '{}' ({}), condition='{}'", animate.name(), animId, animate.expression());
+                        ViaBedrockUtilityFabric.LOGGER.debug("[Animation] Registered '{}' ({}), condition='{}'", animate.name(), animId, animate.expression());
                     }
                 } catch (Throwable e) {
                     ViaBedrockUtilityFabric.LOGGER.warn("Failed to register animation: {}", animate.name(), e);

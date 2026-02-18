@@ -25,10 +25,7 @@ public abstract class ClientWorldMixin {
 
         Entity entity = this.getEntityLookup().get(entityId);
         if (entity != null) {
-            handler.getCachedPlayerRenderers().remove(entity.getUuid());
             handler.getCachedCustomEntities().remove(entity.getUuid());
-            handler.getCachedPlayerCapes().remove(entity.getUuid());
-            handler.getCachedSkinInfo().remove(entity.getUuid());
         }
     }
 }

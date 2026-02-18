@@ -3,6 +3,7 @@ package org.oryxel.viabedrockutility.mixin.impl.network;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayNetworkHandler;
+import net.minecraft.network.packet.s2c.play.PlayerRemoveS2CPacket;
 import net.minecraft.util.hit.EntityHitResult;
 import net.minecraft.util.hit.HitResult;
 import org.oryxel.viabedrockutility.ViaBedrockUtility;
@@ -17,6 +18,16 @@ import java.util.UUID;
 
 @Mixin(ClientPlayNetworkHandler.class)
 public class ClientPlayNetworkHandlerMixin {
+    @Inject(method = "onPlayerRemove", at = @At("HEAD"))
+    private void onPlayerRemove(PlayerRemoveS2CPacket packet, CallbackInfo ci) {
+        if (!ViaBedrockUtility.getInstance().isViaBedrockPresent()) {
+            return;
+        }
+        for (UUID uuid : packet.profileIds()) {
+            ViaBedrockUtility.getInstance().getPayloadHandler().removePlayerCache(uuid);
+        }
+    }
+
     // Have to do this since you can't run custom command when playing in a server.
     @Inject(method = "sendChatMessage", at = @At("HEAD"), cancellable = true)
     private void injectSendMessage(String content, CallbackInfo ci) {

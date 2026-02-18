@@ -5,6 +5,7 @@ import net.minecraft.client.render.entity.PlayerEntityRenderer;
 import net.minecraft.client.render.entity.model.PlayerEntityModel;
 import net.minecraft.client.render.entity.state.PlayerEntityRenderState;
 import net.minecraft.util.Identifier;
+import org.oryxel.viabedrockutility.mixin.interfaces.ICustomPlayerRendererHolder;
 
 public class CustomPlayerRenderer extends PlayerEntityRenderer {
     private final Identifier texture;
@@ -17,6 +18,13 @@ public class CustomPlayerRenderer extends PlayerEntityRenderer {
         }
 
         this.texture = texture;
+    }
+
+    @Override
+    public PlayerEntityRenderState createRenderState() {
+        PlayerEntityRenderState state = super.createRenderState();
+        ((ICustomPlayerRendererHolder) state).viaBedrockUtility$setCustomPlayerRenderer(this);
+        return state;
     }
 
     @Override

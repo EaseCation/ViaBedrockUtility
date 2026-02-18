@@ -32,7 +32,7 @@ public class CustomEntityPayloadHandler extends PayloadHandler {
             return;
         }
 
-        ViaBedrockUtilityFabric.LOGGER.info("[Entity] MODEL_REQUEST for '{}' (uuid={}) skinId={} variant={} markVariant={} scale={}",
+        ViaBedrockUtilityFabric.LOGGER.debug("[Entity] MODEL_REQUEST for '{}' (uuid={}) skinId={} variant={} markVariant={} scale={}",
             payload.getIdentifier(), payload.getUuid(),
             payload.getEntityData().skinId(), payload.getEntityData().variant(),
             payload.getEntityData().mark_variant(), payload.getEntityData().scale());
@@ -40,7 +40,7 @@ public class CustomEntityPayloadHandler extends PayloadHandler {
 
         CustomEntityTicker ticker = this.cachedCustomEntities.get(payload.getUuid());
         if (ticker == null) {
-            ViaBedrockUtilityFabric.LOGGER.info("[Entity] Creating new CustomEntityTicker for '{}' (uuid={})", payload.getIdentifier(), payload.getUuid());
+            ViaBedrockUtilityFabric.LOGGER.debug("[Entity] Creating new CustomEntityTicker for '{}' (uuid={})", payload.getIdentifier(), payload.getUuid());
             ticker = new CustomEntityTicker(definition);
             this.cachedCustomEntities.put(payload.getUuid(), ticker);
         }

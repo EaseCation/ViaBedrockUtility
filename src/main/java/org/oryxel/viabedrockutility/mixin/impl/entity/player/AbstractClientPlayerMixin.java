@@ -2,14 +2,18 @@ package org.oryxel.viabedrockutility.mixin.impl.entity.player;
 
 //? if >=1.21.9 {
 import net.minecraft.client.network.PlayerListEntry;
+import net.minecraft.entity.player.PlayerSkinType;
 import net.minecraft.entity.player.SkinTextures;
 import net.minecraft.util.AssetInfo;
 import net.minecraft.util.Identifier;
 import org.oryxel.viabedrockutility.ViaBedrockUtility;
+import org.oryxel.viabedrockutility.payload.PayloadHandler;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+
+import java.util.UUID;
 
 @Mixin(PlayerListEntry.class)
 public abstract class AbstractClientPlayerMixin {
@@ -21,19 +25,39 @@ public abstract class AbstractClientPlayerMixin {
             return;
         }
 
-        Identifier cape = ViaBedrockUtility.getInstance().getPayloadHandler().getCachedPlayerCapes().get(self.getProfile().id());
-        if (cape != null) {
-            SkinTextures skin = cir.getReturnValue();
-            AssetInfo.TextureAsset currentCape = skin.cape();
-            if (currentCape == null || !cape.equals(currentCape.texturePath())) {
-                cir.setReturnValue(new SkinTextures(
-                        skin.body(),
-                        new AssetInfo.TextureAssetInfo(cape),
-                        skin.elytra(),
-                        skin.model(),
-                        skin.secure()
-                ));
+        final PayloadHandler handler = ViaBedrockUtility.getInstance().getPayloadHandler();
+        final UUID uuid = self.getProfile().id();
+
+        PayloadHandler.CachedPlayerSkin skinCache = handler.getCachedPlayerSkins().get(uuid);
+        Identifier capeId = handler.getCachedPlayerCapes().get(uuid);
+
+        if (skinCache == null && capeId == null) {
+            return;
+        }
+
+        SkinTextures skin = cir.getReturnValue();
+        AssetInfo.TextureAsset body = skin.body();
+        AssetInfo.TextureAsset cape = skin.cape();
+        PlayerSkinType model = skin.model();
+        boolean changed = false;
+
+        if (skinCache != null) {
+            if (body == null || !skinCache.getTextureId().equals(body.texturePath())) {
+                body = new AssetInfo.TextureAssetInfo(skinCache.getTextureId(), skinCache.getTextureId());
+                model = skinCache.isSlim() ? PlayerSkinType.SLIM : PlayerSkinType.WIDE;
+                changed = true;
             }
+        }
+
+        if (capeId != null) {
+            if (cape == null || !capeId.equals(cape.texturePath())) {
+                cape = new AssetInfo.TextureAssetInfo(capeId, capeId);
+                changed = true;
+            }
+        }
+
+        if (changed) {
+            cir.setReturnValue(new SkinTextures(body, cape, skin.elytra(), model, skin.secure()));
         }
     }
 }
