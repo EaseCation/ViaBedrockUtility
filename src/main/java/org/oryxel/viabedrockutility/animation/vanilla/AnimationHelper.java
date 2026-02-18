@@ -75,7 +75,7 @@ public class AnimationHelper {
         return f % vbu.lengthInSeconds();
     }
 
-    private static Optional<ModelPart> getPartByName(List<ModelPart> parts, String name) {
+    public static Optional<ModelPart> getPartByName(List<ModelPart> parts, String name) {
         for (ModelPart part : parts) {
             if (((IModelPart)((Object)part)).viaBedrockUtility$getName().equalsIgnoreCase(name) && part.isEmpty()) {
                 return Optional.of(part);

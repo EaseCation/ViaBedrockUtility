@@ -31,6 +31,9 @@ import org.oryxel.viabedrockutility.payload.impl.entity.ModelRequestPayload;
 import org.oryxel.viabedrockutility.payload.impl.skin.BaseSkinPayload;
 import org.oryxel.viabedrockutility.payload.impl.skin.CapeDataPayload;
 import org.oryxel.viabedrockutility.payload.impl.skin.SkinDataPayload;
+import org.oryxel.viabedrockutility.animation.PlayerAnimationManager;
+import org.oryxel.viabedrockutility.mixin.interfaces.IBedrockAnimatedModel;
+import org.oryxel.viabedrockutility.pack.definitions.AnimationDefinitions;
 import org.oryxel.viabedrockutility.renderer.CustomPlayerRenderer;
 import org.oryxel.viabedrockutility.util.GeometryUtil;
 
@@ -236,6 +239,36 @@ public class PayloadHandler {
         this.cachedPlayerRenderers.put(payload.getPlayerUuid(), new CustomPlayerRenderer(entityContext, model, slim, identifier));
         this.cachedPlayerSkins.put(payload.getPlayerUuid(), new CachedPlayerSkin(identifier, slim));
         ViaBedrockUtilityFabric.LOGGER.info("[Skin] CustomPlayerRenderer created for {}", payload.getPlayerUuid());
+
+        // Parse animation overrides from skinResourcePatch.animations
+        if (this.packManager != null) {
+            try {
+                final JsonObject patch = JsonParser.parseString(info.getResourcePatch()).getAsJsonObject();
+                if (patch.has("animations")) {
+                    final JsonObject anims = patch.getAsJsonObject("animations");
+                    final PlayerAnimationManager animManager = new PlayerAnimationManager();
+                    for (final var animEntry : anims.entrySet()) {
+                        final String animIdentifier = animEntry.getValue().getAsString();
+                        final AnimationDefinitions.AnimationData animData =
+                                this.packManager.getAnimationDefinitions().getAnimations().get(animIdentifier);
+                        if (animData != null) {
+                            animManager.addAnimation(animEntry.getKey(), animData);
+                        } else {
+                            ViaBedrockUtilityFabric.LOGGER.warn("[Skin] Animation '{}' ({}) not found in PackManager for {}",
+                                    animEntry.getKey(), animIdentifier, payload.getPlayerUuid());
+                        }
+                    }
+                    if (!animManager.isEmpty()) {
+                        ((IBedrockAnimatedModel) (Object) model).viaBedrockUtility$setAnimationManager(animManager);
+                        ViaBedrockUtilityFabric.LOGGER.info("[Skin] Loaded {} animation overrides for {}",
+                                animManager.getAffectedBones().size(), payload.getPlayerUuid());
+                    }
+                }
+            } catch (final Exception e) {
+                ViaBedrockUtilityFabric.LOGGER.warn("[Skin] Failed to parse animation overrides for {}: {}",
+                        payload.getPlayerUuid(), e.getMessage());
+            }
+        }
 
         if (client.getNetworkHandler() == null) {
             return;
