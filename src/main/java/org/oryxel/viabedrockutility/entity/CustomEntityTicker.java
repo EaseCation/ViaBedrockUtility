@@ -10,6 +10,8 @@ import org.cube.converter.data.bedrock.BedrockEntityData;
 import org.cube.converter.data.bedrock.controller.BedrockRenderController;
 import org.cube.converter.model.impl.bedrock.BedrockGeometryModel;
 import org.oryxel.viabedrockutility.ViaBedrockUtility;
+import org.oryxel.viabedrockutility.animation.controller.AnimationController;
+import org.oryxel.viabedrockutility.animation.controller.AnimationControllerInstance;
 import org.oryxel.viabedrockutility.enums.bedrock.ActorFlags;
 import org.oryxel.viabedrockutility.fabric.ViaBedrockUtilityFabric;
 import org.oryxel.viabedrockutility.mappings.BedrockMappings;
@@ -71,6 +73,9 @@ public class CustomEntityTicker {
 
     // Pre-parsed MoLang expressions for initialize and pre_animation scripts
     private final List<List<Expression>> parsedPreAnimationExpressions = new ArrayList<>();
+
+    @Getter
+    private final List<AnimationControllerInstance> controllerInstances = new ArrayList<>();
 
     private boolean hasPlayInitAnimation;
 
@@ -232,7 +237,9 @@ public class CustomEntityTicker {
 
             final CustomEntityModel<CustomEntityRenderer.CustomEntityRenderState> cModel = (CustomEntityModel<CustomEntityRenderer.CustomEntityRenderState>) GeometryUtil.buildModel(geometry, false, false);
 
-            this.renderer.getModels().add(new CustomEntityRenderer.Model(model.key(), model.geometryValue(), cModel, texture, evalMaterial(executionScope, model.controller()), model.controller()));
+            var visibleBounds = this.packManager.getModelDefinitions().getVisibleBoundsMap()
+                    .getOrDefault(model.geometryValue(), org.oryxel.viabedrockutility.pack.definitions.VisibleBounds.DEFAULT);
+            this.renderer.getModels().add(new CustomEntityRenderer.Model(model.key(), model.geometryValue(), cModel, texture, evalMaterial(executionScope, model.controller()), model.controller(), visibleBounds));
             this.availableModels.add(model.key());
         }
         this.renderer.getModels().removeIf(model -> !this.availableModels.contains(model.key()));
@@ -243,6 +250,25 @@ public class CustomEntityTicker {
                 // Register ALL animations unconditionally; condition is evaluated per-frame as blend weight
                 try {
                     final String animId = this.entityDefinition.entityData().getAnimations().get(animate.name());
+
+                    // Check if this is an animation controller reference
+                    if (animId != null && animId.startsWith("controller.animation.")) {
+                        final AnimationController controller = this.packManager.getAnimationControllerDefinitions()
+                                .getControllers().get(animId);
+                        if (controller != null) {
+                            final AnimationControllerInstance instance = new AnimationControllerInstance(
+                                    controller,
+                                    this.entityDefinition.entityData().getAnimations(),
+                                    this.packManager.getAnimationDefinitions(),
+                                    this);
+                            this.controllerInstances.add(instance);
+                            ViaBedrockUtilityFabric.LOGGER.debug("[Animation] Registered controller '{}' ({})", animate.name(), animId);
+                        } else {
+                            ViaBedrockUtilityFabric.LOGGER.debug("[Animation] Controller '{}' ({}) not found in definitions", animate.name(), animId);
+                        }
+                        return; // forEach return = continue
+                    }
+
                     final var animData = this.packManager.getAnimationDefinitions().getAnimations().get(animId);
                     if (animData != null) {
                         this.renderer.play(animData);

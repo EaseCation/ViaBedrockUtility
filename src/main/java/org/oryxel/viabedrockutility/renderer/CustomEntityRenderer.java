@@ -24,6 +24,7 @@ import net.minecraft.util.math.RotationAxis;
 import net.minecraft.util.math.Vec3d;
 import org.cube.converter.data.bedrock.controller.BedrockRenderController;
 import org.oryxel.viabedrockutility.animation.animator.Animator;
+import org.oryxel.viabedrockutility.animation.controller.AnimationControllerInstance;
 import org.oryxel.viabedrockutility.entity.CustomEntityTicker;
 import org.oryxel.viabedrockutility.fabric.ViaBedrockUtilityFabric;
 import org.oryxel.viabedrockutility.material.data.Material;
@@ -73,22 +74,37 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
     }
 
     //? if >=1.21.9 {
-    private int renderLogCounter = 0;
+    // Use identity hash as initial offset so different entities' LOD frames are evenly distributed
+    private int renderFrameCounter = System.identityHashCode(this);
     @Override
     public void render(CustomEntityRenderState state, MatrixStack matrices, OrderedRenderCommandQueue queue, CameraRenderState cameraState) {
-        if (renderLogCounter++ % 200 == 0) {
-            StringBuilder sb = new StringBuilder();
-            for (Model m : this.models) {
-                sb.append(m.key()).append("(mat=").append(m.material().identifier()).append(") ");
-            }
-            ViaBedrockUtilityFabric.LOGGER.info("[Render] render() models={} animators={} keys=[{}]", this.models.size(), this.animators.size(), sb.toString().trim());
+        this.renderFrameCounter++;
+
+        // Distance-based LOD: skip animation computation for distant entities
+        boolean shouldAnimate = true;
+        double dist = state.getDistanceFromCamera();
+        if (dist > 48.0) {
+            shouldAnimate = (this.renderFrameCounter % 4 == 0);
+        } else if (dist > 24.0) {
+            shouldAnimate = (this.renderFrameCounter % 2 == 0);
         }
 
-        // Build per-frame scope with all query bindings, execute pre_animation, set up animators
-        final Scope frameScope = this.buildFrameScope(state);
-        this.ticker.runPreAnimationTask(frameScope);
-        this.animators.values().forEach(a -> a.setBaseScope(frameScope));
-        this.evaluateAnimationConditions(frameScope);
+        final Scope frameScope;
+        if (shouldAnimate) {
+            // Build per-frame scope with all query bindings, execute pre_animation, set up animators
+            frameScope = this.buildFrameScope(state);
+            this.ticker.runPreAnimationTask(frameScope);
+            this.animators.values().forEach(a -> a.setBaseScope(frameScope));
+            this.evaluateAnimationConditions(frameScope);
+
+            // Tick animation controllers (evaluate transitions, update blend weights)
+            for (AnimationControllerInstance ci : this.ticker.getControllerInstances()) {
+                ci.setBaseScope(frameScope);
+                ci.tick(frameScope);
+            }
+        } else {
+            frameScope = null;
+        }
 
         float s = (this.ticker.getScale() != null) ? this.ticker.getScale() : 1.0F;
         for (Model model : this.models) {
@@ -98,17 +114,24 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
             matrices.scale(-s, -s, s);
             matrices.translate(0.0F, -1.501F, 0.0F);
 
-            this.animators.values().forEach(animator -> {
-                try {
-                    animator.animate(model.model(), state);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-            });
+            if (shouldAnimate) {
+                this.animators.values().forEach(animator -> {
+                    try {
+                        animator.animate(model.model(), state);
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                });
 
-            // Apply part_visibility
-            if (model.controller() != null && !model.controller().partVisibility().isEmpty()) {
-                applyPartVisibility(model.model(), model.controller().partVisibility(), frameScope);
+                // Apply animation controller animations
+                for (AnimationControllerInstance ci : this.ticker.getControllerInstances()) {
+                    ci.animate(model.model(), state);
+                }
+
+                // Apply part_visibility
+                if (model.controller() != null && !model.controller().partVisibility().isEmpty()) {
+                    applyPartVisibility(model.model(), model.controller().partVisibility(), frameScope);
+                }
             }
 
             try {
@@ -121,13 +144,9 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
 
                     RenderCommandQueue batchQueue = queue.getBatchingQueue(0);
                     batchQueue.submitModelPart(model.model.getRootPart(), matrices, renderLayer, effectiveLight, OverlayTexture.packUv(0, 10), null);
-                } else if (renderLogCounter % 100 == 1) {
-                    ViaBedrockUtilityFabric.LOGGER.warn("[Render] RenderLayer is null for model key={}, texture={}", model.key(), model.texture());
                 }
             } catch (Exception e) {
-                if (renderLogCounter % 100 == 1) {
-                    ViaBedrockUtilityFabric.LOGGER.error("[Render] Error rendering model key={}, texture={}", model.key(), model.texture(), e);
-                }
+                ViaBedrockUtilityFabric.LOGGER.debug("[Render] Error rendering model key={}, texture={}", model.key(), model.texture(), e);
             }
 
             matrices.pop();
@@ -137,11 +156,30 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
     //?} else {
     /*@Override
     public void render(CustomEntityRenderState state, MatrixStack matrices, VertexConsumerProvider vertexConsumers, int light) {
-        // Build per-frame scope with all query bindings, execute pre_animation, set up animators
-        final Scope frameScope = this.buildFrameScope(state);
-        this.ticker.runPreAnimationTask(frameScope);
-        this.animators.values().forEach(a -> a.setBaseScope(frameScope));
-        this.evaluateAnimationConditions(frameScope);
+        this.renderFrameCounter++;
+
+        boolean shouldAnimate = true;
+        double dist = state.getDistanceFromCamera();
+        if (dist > 48.0) {
+            shouldAnimate = (this.renderFrameCounter % 4 == 0);
+        } else if (dist > 24.0) {
+            shouldAnimate = (this.renderFrameCounter % 2 == 0);
+        }
+
+        final Scope frameScope;
+        if (shouldAnimate) {
+            frameScope = this.buildFrameScope(state);
+            this.ticker.runPreAnimationTask(frameScope);
+            this.animators.values().forEach(a -> a.setBaseScope(frameScope));
+            this.evaluateAnimationConditions(frameScope);
+
+            for (AnimationControllerInstance ci : this.ticker.getControllerInstances()) {
+                ci.setBaseScope(frameScope);
+                ci.tick(frameScope);
+            }
+        } else {
+            frameScope = null;
+        }
 
         float s = (this.ticker.getScale() != null) ? this.ticker.getScale() : 1.0F;
         for (Model model : this.models) {
@@ -151,17 +189,22 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
             matrices.scale(-s, -s, s);
             matrices.translate(0.0F, -1.501F, 0.0F);
 
-            this.animators.values().forEach(animator -> {
-                try {
-                    animator.animate(model.model(), state);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-            });
+            if (shouldAnimate) {
+                this.animators.values().forEach(animator -> {
+                    try {
+                        animator.animate(model.model(), state);
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                });
 
-            // Apply part_visibility
-            if (model.controller() != null && !model.controller().partVisibility().isEmpty()) {
-                applyPartVisibility(model.model(), model.controller().partVisibility(), frameScope);
+                for (AnimationControllerInstance ci : this.ticker.getControllerInstances()) {
+                    ci.animate(model.model(), state);
+                }
+
+                if (model.controller() != null && !model.controller().partVisibility().isEmpty()) {
+                    applyPartVisibility(model.model(), model.controller().partVisibility(), frameScope);
+                }
             }
 
             RenderLayer renderLayer = model.material.info().getVariants().get("skinning_color").build().apply(model.texture);
@@ -183,8 +226,43 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
 
     @Override
     public boolean shouldRender(T entity, Frustum frustum, double x, double y, double z) {
+        if (!frustum.isVisible(getVisualBoundingBox(entity))) return false;
         double d = 64.0F * Entity.getRenderDistanceMultiplier();
         return entity.squaredDistanceTo(x, y, z) <= d * d;
+    }
+
+    /**
+     * Constructs a bounding box from geometry visible_bounds (width/height/offset) and entity scale,
+     * rather than the entity's collision box which may be much smaller than the rendered model.
+     */
+    private net.minecraft.util.math.Box getVisualBoundingBox(T entity) {
+        float scale = (this.ticker.getScale() != null) ? this.ticker.getScale() : 1.0f;
+
+        // Find the largest visible bounds across all models
+        float maxHalfWidth = 0.5f;
+        float maxHeight = 2.0f;
+        float offsetY = 1.0f;
+        for (Model model : this.models) {
+            var vb = model.visibleBounds();
+            if (vb != null) {
+                maxHalfWidth = Math.max(maxHalfWidth, vb.width() / 2.0f);
+                maxHeight = Math.max(maxHeight, vb.height());
+                offsetY = vb.offsetY();
+            }
+        }
+
+        maxHalfWidth *= scale;
+        maxHeight *= scale;
+        offsetY *= scale;
+
+        double ex = entity.getX();
+        double ey = entity.getY();
+        double ez = entity.getZ();
+        double cy = ey + offsetY; // center Y of the visible bounds
+        return new net.minecraft.util.math.Box(
+                ex - maxHalfWidth, cy - maxHeight / 2.0, ez - maxHalfWidth,
+                ex + maxHalfWidth, cy + maxHeight / 2.0, ez + maxHalfWidth
+        );
     }
 
     @Override
@@ -377,7 +455,8 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
         return new CustomEntityRenderState();
     }
 
-    public record Model(String key, String geometry, CustomEntityModel<CustomEntityRenderState> model, Identifier texture, Material material, BedrockRenderController controller) {
+    public record Model(String key, String geometry, CustomEntityModel<CustomEntityRenderState> model, Identifier texture, Material material, BedrockRenderController controller,
+                        org.oryxel.viabedrockutility.pack.definitions.VisibleBounds visibleBounds) {
     }
 
     @Getter
@@ -424,24 +503,28 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
         // Override specific bones using name index — O(pv.size()) instead of O(pv.size() × allParts.size())
         // In VBU's model hierarchy, each bone produces both a bone ModelPart and
         // a cube wrapper ModelPart sharing the same name; both must be updated.
+        boolean anyHidden = !defaultVisible;
+
         final Map<String, List<ModelPart>> partsByName = entityModel.getPartsByName();
         for (Map.Entry<String, String> entry : pv.entrySet()) {
             if ("*".equals(entry.getKey())) continue;
             List<ModelPart> matchingParts = partsByName.get(entry.getKey());
             if (matchingParts != null) {
                 boolean vis = evalVisibility(entry.getValue(), scope);
+                if (!vis) anyHidden = true;
                 for (ModelPart part : matchingParts) {
                     part.visible = vis;
                 }
             }
         }
 
-        // Post-pass: ensure ancestors of visible parts are also visible.
+        // Post-pass: only needed when some parts are hidden.
         // Java MC's ModelPart.visible is hierarchical — if a parent is invisible,
-        // all children are hidden too. Bedrock's part_visibility only controls
-        // per-bone cuboid rendering without affecting children. This bottom-up
-        // pass bridges the semantic difference.
-        ensureAncestorsVisible(entityModel.getRootPart());
+        // all children are hidden too. This bottom-up pass ensures ancestors of
+        // visible parts remain visible.
+        if (anyHidden) {
+            ensureAncestorsVisible(entityModel.getRootPart());
+        }
     }
 
     /**

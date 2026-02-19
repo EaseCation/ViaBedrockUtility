@@ -102,6 +102,12 @@ public final class GeometryUtil {
                 continue;
             }
 
+            // Skip self-referencing parents to prevent circular ModelPart trees (StackOverflowError)
+            if (entry.getKey().equals(entry.getValue().parent)) {
+                root.children.put(entry.getKey(), entry.getValue().part());
+                continue;
+            }
+
             PartInfo parentPart = stringToPart.get(entry.getValue().parent);
             if (parentPart != null) {
                 parentPart.children.put(entry.getKey(), entry.getValue().part);

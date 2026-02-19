@@ -124,7 +124,7 @@ public class PlayerAnimationManager {
                     });
                 }
             }
-            AnimationHelper.animate(scope, model, entry.getValue().compiled(), elapsed, 1.0f, tempVec);
+            AnimationHelper.animate(scope, model, entry.getValue().compiled(), elapsed, 1.0f, tempVec, null);
         }
     }
 

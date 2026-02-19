@@ -21,6 +21,7 @@
     "render.PlayerEntityRenderStateMixin",
     "render.dispatcher.EntityRenderDispatcherMixin",
     "render.feature.CapeFeatureRendererMixin",
+    "sound.SoundSystemMixin",
     "world.ClientWorldMixin"
   ]
 }

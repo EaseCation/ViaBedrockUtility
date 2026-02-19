@@ -13,15 +13,18 @@ import java.util.Map;
 import java.util.Optional;
 
 public class AnimationHelper {
-    public static void animate(Scope scope, Model model, VBUAnimation animation, long runningTime, float scale, Vector3f tempVec) {
+    public static void animate(Scope scope, Model model, VBUAnimation animation, long runningTime, float scale, Vector3f tempVec,
+                               Map<String, ModelPart> boneIndex) {
         float g = AnimationHelper.getRunningSeconds(animation, runningTime);
         for (Map.Entry<String, List<AnimateTransformation>> entry : animation.boneAnimations().entrySet()) {
-            Optional<ModelPart> optional = getPartByName(model.getParts(), entry.getKey());
-            if (optional.isEmpty()) {
+            @SuppressWarnings("unchecked")
+            List<ModelPart> parts = (List<ModelPart>) model.getParts();
+            ModelPart part = boneIndex != null
+                    ? boneIndex.get(entry.getKey().toLowerCase(java.util.Locale.ROOT))
+                    : getPartByName(parts, entry.getKey()).orElse(null);
+            if (part == null) {
                 continue;
             }
-
-            final ModelPart part = optional.get();
             List<AnimateTransformation> list = entry.getValue();
             for (AnimateTransformation transformation : list) {
                 VBUKeyFrame[] lvs = transformation.keyframes();

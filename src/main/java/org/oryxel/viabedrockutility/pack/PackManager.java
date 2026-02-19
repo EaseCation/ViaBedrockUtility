@@ -20,6 +20,7 @@ public class PackManager {
     private final ModelDefinitions modelDefinitions;
     private final MaterialDefinitions materialDefinitions;
     private final AnimationDefinitions animationDefinitions;
+    private final AnimationControllerDefinitions animationControllerDefinitions;
 
     public PackManager(final List<Content> customPacks) {
         final List<Content> allPacks = new ArrayList<>();
@@ -45,6 +46,7 @@ public class PackManager {
         this.modelDefinitions = new ModelDefinitions(this);
         this.materialDefinitions = new MaterialDefinitions(this);
         this.animationDefinitions = new AnimationDefinitions(this);
+        this.animationControllerDefinitions = new AnimationControllerDefinitions(this);
 
         TextureProcessor.process(packs);
 

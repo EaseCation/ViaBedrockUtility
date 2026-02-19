@@ -135,7 +135,7 @@ public abstract class ModelPartMixin implements IModelPart {
 
     @Override
     public void viaBedrockUtility$setOffset(Vector3f vec3) {
-        this.offset = new Vector3f(vec3.x, -vec3.y, vec3.z);
+        this.offset.set(vec3.x, -vec3.y, vec3.z);
     }
 
     @Override
@@ -146,10 +146,10 @@ public abstract class ModelPartMixin implements IModelPart {
     @Override
     public void viaBedrockUtility$setAngles(Vector3f vec3) {
         if (!this.alreadySetRotation) {
-            this.defaultRotation = new Vector3f(vec3.x, vec3.y, vec3.z);
+            this.defaultRotation.set(vec3.x, vec3.y, vec3.z);
             this.alreadySetRotation = true;
         }
 
-        this.rotation = new Vector3f(vec3.x, vec3.y, vec3.z);
+        this.rotation.set(vec3.x, vec3.y, vec3.z);
     }
 }

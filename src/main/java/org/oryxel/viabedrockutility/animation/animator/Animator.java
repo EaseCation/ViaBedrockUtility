@@ -8,14 +8,19 @@ import org.oryxel.viabedrockutility.entity.CustomEntityTicker;
 import org.oryxel.viabedrockutility.mixin.interfaces.IModelPart;
 import org.oryxel.viabedrockutility.mocha.LayeredScope;
 import org.oryxel.viabedrockutility.mocha.MoLangEngine;
+import org.oryxel.viabedrockutility.mocha.OverlayBinding;
 import org.oryxel.viabedrockutility.pack.definitions.AnimationDefinitions;
 import org.oryxel.viabedrockutility.renderer.CustomEntityRenderer;
 import team.unnamed.mocha.runtime.Scope;
 import team.unnamed.mocha.runtime.value.MutableObjectBinding;
 import team.unnamed.mocha.runtime.value.Value;
 
+import net.minecraft.client.model.ModelPart;
+
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 public class Animator {
@@ -27,6 +32,9 @@ public class Animator {
     private boolean donePlaying, started, firstPlay;
 
     private final Vector3f TEMP_VEC = new Vector3f();
+
+    // Lazily-built bone name → ModelPart index per Model, avoiding O(N) linear scan
+    private final Map<Model, Map<String, ModelPart>> boneIndexCache = new HashMap<>(2);
 
     @Setter
     private Scope baseScope;
@@ -89,14 +97,28 @@ public class Animator {
         float runningTime = AnimationHelper.getRunningSeconds(data.animation(), data.compiled(), System.currentTimeMillis() - this.animationStartMS);
 
         // Override life_time and anim_time with animation-specific values (not entity lifetime)
-        final MutableObjectBinding animQueryBinding = new MutableObjectBinding();
-        animQueryBinding.setAllFrom((MutableObjectBinding) this.baseScope.get("query"));
+        // Use OverlayBinding to avoid expensive setAllFrom() copy
+        final OverlayBinding animQueryBinding = new OverlayBinding(
+                (MutableObjectBinding) this.baseScope.get("query"));
         animQueryBinding.set("anim_time", Value.of(runningTime));
         animQueryBinding.set("life_time", Value.of(runningTime));
         scope.set("query", animQueryBinding);
         scope.set("q", animQueryBinding);
 
-        AnimationHelper.animate(scope, model, data.compiled(), System.currentTimeMillis() - this.animationStartMS, this.blendWeight, TEMP_VEC);
+        @SuppressWarnings("unchecked")
+        Map<String, ModelPart> boneIndex = this.boneIndexCache.computeIfAbsent(model, m -> {
+            Map<String, ModelPart> index = new HashMap<>();
+            for (Object obj : m.getParts()) {
+                ModelPart part = (ModelPart) obj;
+                String name = ((IModelPart)((Object)part)).viaBedrockUtility$getName();
+                if (name != null && part.isEmpty()) {
+                    index.putIfAbsent(name.toLowerCase(Locale.ROOT), part);
+                }
+            }
+            return index;
+        });
+
+        AnimationHelper.animate(scope, model, data.compiled(), System.currentTimeMillis() - this.animationStartMS, this.blendWeight, TEMP_VEC, boneIndex);
 
         float runningTimeWithoutLoop = (System.currentTimeMillis() - this.animationStartMS) / 1000F;
         this.tickTimeline(runningTimeWithoutLoop);
@@ -131,6 +153,10 @@ public class Animator {
                 && Math.abs(candidate.getKey() - runningTime) < 0.005F) {
             this.ticker.handleAnimationTimeline(candidate.getValue());
         }
+    }
+
+    public boolean isDonePlaying() {
+        return donePlaying;
     }
 
     public void stop(Model model) {
