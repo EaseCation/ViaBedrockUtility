@@ -68,7 +68,7 @@ repositories {
 		url = "https://jitpack.io"
 
 		content {
-			includeGroup "com.github.Oryxel"
+			includeGroup "com.github.EaseCation"
 		}
 	}
 }
@@ -80,7 +80,7 @@ dependencies {
 
 	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 
-	lib("org.oryxel.cube:cubeconverter:1.3") {
+	lib("com.github.EaseCation:CubeConverter:1.3") {
 		transitive = false
 	}
 
