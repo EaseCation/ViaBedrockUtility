@@ -57,11 +57,14 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
     private long headStableStartMs;         // when head last became "stable"
     private boolean rotationInitialized;
 
-    // Per-tick movement tracking with exponential smoothing (like Java LimbAnimator)
-    private int lastEntityAge = -1;
-    private float smoothedSpeed;       // blocks/tick, smoothed
-    private float smoothedVerticalSpeed; // blocks/tick, smoothed
-    private float smoothedDistance;     // accumulated smoothed distance in blocks
+    // LimbAnimator-style movement tracking (per-frame accumulation + per-tick smoothing)
+    private double lastPosX, lastPosY, lastPosZ;
+    private float tickHorizDist;
+    private float tickVertDist;
+    private int lastAge = -1;
+    private float limbSpeed;
+    private float limbDistance;
+    private float limbVerticalSpeed;
 
     public CustomEntityRenderer(final CustomEntityTicker ticker, final List<Model> models, EntityRendererFactory.Context context) {
         super(context);
@@ -190,8 +193,6 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
         state.setCustomRenderer(this);
         float serverYaw = entity.getYaw(tickDelta);
         float serverPitch = entity.getPitch(tickDelta);
-        state.distanceTraveled = entity.distanceTraveled;
-
         // Initialize on first frame
         if (!this.rotationInitialized) {
             this.smoothedHeadYaw = serverYaw;
@@ -240,31 +241,45 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
         state.setEntityAlive(entity.isAlive());
         state.setEntityLifeTime(entity.age / 20.0f);
 
-        // Per-tick movement tracking with exponential smoothing (like Java LimbAnimator).
-        // Only update once per tick (when entity.age changes) to avoid per-frame spikes.
-        // INTERACTION/ITEM_DISPLAY entities don't receive velocity packets, so we compute
-        // speed from lastX/X deltas which are updated per server tick.
-        if (entity.age != this.lastEntityAge) {
-            final double dx = entity.getX() - entity.lastX;
-            final double dy = entity.getY() - entity.lastY;
-            final double dz = entity.getZ() - entity.lastZ;
-            final float tickMovement = (float) Math.sqrt(dx * dx + dz * dz);
+        // LimbAnimator-style movement tracking.
+        // InteractionEntityMixin enables PositionInterpolator, so getLerpedPos() now
+        // returns properly interpolated positions (3-tick lerp, smooth within each tick).
+        final Vec3d pos = entity.getLerpedPos(tickDelta);
 
-            // Exponential smoothing (factor 0.4, same as Java LimbAnimator)
-            this.smoothedSpeed += (tickMovement - this.smoothedSpeed) * 0.4f;
-            this.smoothedDistance += this.smoothedSpeed;
-            this.smoothedVerticalSpeed += ((float) dy - this.smoothedVerticalSpeed) * 0.4f;
-
-            this.lastEntityAge = entity.age;
+        if (this.lastAge < 0) {
+            this.lastPosX = pos.x;
+            this.lastPosY = pos.y;
+            this.lastPosZ = pos.z;
+            this.lastAge = entity.age;
         }
 
-        state.distanceTraveled = this.smoothedDistance;
-        state.setPositionDeltaX(entity.getX() - entity.lastX);
-        state.setPositionDeltaY(entity.getY() - entity.lastY);
-        state.setPositionDeltaZ(entity.getZ() - entity.lastZ);
-        // Convert blocks/tick to blocks/second for MoLang query values
-        state.setGroundSpeed(this.smoothedSpeed * 20.0f);
-        state.setVerticalSpeed(this.smoothedVerticalSpeed * 20.0f);
+        final double mx = pos.x - this.lastPosX;
+        final double my = pos.y - this.lastPosY;
+        final double mz = pos.z - this.lastPosZ;
+        this.tickHorizDist += (float) Math.sqrt(mx * mx + mz * mz);
+        this.tickVertDist += (float) my;
+
+        this.lastPosX = pos.x;
+        this.lastPosY = pos.y;
+        this.lastPosZ = pos.z;
+
+        // Per-tick: LimbAnimator 0.4 exponential smoothing
+        if (entity.age != this.lastAge) {
+            this.limbSpeed += (this.tickHorizDist - this.limbSpeed) * 0.4f;
+            this.limbDistance += this.limbSpeed;
+            this.limbVerticalSpeed += (this.tickVertDist - this.limbVerticalSpeed) * 0.4f;
+
+            this.tickHorizDist = 0;
+            this.tickVertDist = 0;
+            this.lastAge = entity.age;
+        }
+
+        state.distanceTraveled = this.limbDistance;
+        state.setPositionDeltaX(mx);
+        state.setPositionDeltaY(my);
+        state.setPositionDeltaZ(mz);
+        state.setGroundSpeed(this.limbSpeed * 20.0f);
+        state.setVerticalSpeed(this.limbVerticalSpeed * 20.0f);
 
         // Calculate rotation_to_camera for billboard effect
         final var camera = MinecraftClient.getInstance().gameRenderer.getCamera();
@@ -274,14 +289,14 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
         /*final Vec3d cameraPos = camera.getPos();
         *///?}
         final Vec3d camEntityPos = entity.getLerpedPos(tickDelta);
-        final double dx = cameraPos.x - camEntityPos.x;
-        final double dy = cameraPos.y - camEntityPos.y;
-        final double dz = cameraPos.z - camEntityPos.z;
-        final double cameraHorizontalDist = Math.sqrt(dx * dx + dz * dz);
-        state.setRotationToCameraX(-(float) Math.toDegrees(Math.atan2(dy, cameraHorizontalDist)));
-        state.setRotationToCameraY(-(float) (Math.toDegrees(Math.atan2(dx, dz)) + state.bodyYaw - 180.0));
+        final double cdx = cameraPos.x - camEntityPos.x;
+        final double cdy = cameraPos.y - camEntityPos.y;
+        final double cdz = cameraPos.z - camEntityPos.z;
+        final double cameraHorizontalDist = Math.sqrt(cdx * cdx + cdz * cdz);
+        state.setRotationToCameraX(-(float) Math.toDegrees(Math.atan2(cdy, cameraHorizontalDist)));
+        state.setRotationToCameraY(-(float) (Math.toDegrees(Math.atan2(cdx, cdz)) + state.bodyYaw - 180.0));
 
-        state.setDistanceFromCamera(Math.sqrt(dx * dx + dy * dy + dz * dz));
+        state.setDistanceFromCamera(Math.sqrt(cdx * cdx + cdy * cdy + cdz * cdz));
     }
 
     private void setupTransforms(CustomEntityRenderState state, MatrixStack matrices) {
