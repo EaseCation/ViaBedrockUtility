@@ -12,7 +12,7 @@ public class ViaBedrockUtilityFabric implements ModInitializer {
 
 	@Override
 	public void onInitialize() {
-		LOGGER.info("Hello World!");
+		LOGGER.debug("ViaBedrockUtility initialized");
 		ViaBedrockUtility.getInstance().init();
 	}
 }

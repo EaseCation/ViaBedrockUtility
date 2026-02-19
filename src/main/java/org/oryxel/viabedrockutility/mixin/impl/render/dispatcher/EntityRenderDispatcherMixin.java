@@ -47,7 +47,7 @@ public abstract class EntityRenderDispatcherMixin {
         final CustomEntityTicker data = ViaBedrockUtility.getInstance().getPayloadHandler().getCachedCustomEntities().get(entity.getUuid());
         if (data != null && data.getRenderer() != null) {
             if (mixinLogCounter++ % 200 == 0) {
-                ViaBedrockUtilityFabric.LOGGER.info("[Mixin] getRenderer intercepted for entity uuid={}, returning custom renderer with {} models",
+                ViaBedrockUtilityFabric.LOGGER.debug("[Mixin] getRenderer intercepted for entity uuid={}, returning custom renderer with {} models",
                     entity.getUuid(), data.getRenderer().getModels().size());
             }
             cir.setReturnValue((EntityRenderer<? super T, ?>) data.getRenderer());

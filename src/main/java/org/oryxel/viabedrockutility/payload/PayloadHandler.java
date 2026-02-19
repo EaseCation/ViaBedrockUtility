@@ -65,12 +65,12 @@ public class PayloadHandler {
         if (payload instanceof ModelRequestPayload modelRequest) {
             this.handle(modelRequest);
         } else if (payload instanceof BaseSkinPayload baseSkin) {
-            ViaBedrockUtilityFabric.LOGGER.info("[Skin] Received skin info for player {} ({}x{}, {} chunk(s))", baseSkin.getPlayerUuid(), baseSkin.getSkinWidth(), baseSkin.getSkinHeight(), baseSkin.getChunkCount());
+            ViaBedrockUtilityFabric.LOGGER.debug("[Skin] Received skin info for player {} ({}x{}, {} chunk(s))", baseSkin.getPlayerUuid(), baseSkin.getSkinWidth(), baseSkin.getSkinHeight(), baseSkin.getChunkCount());
             this.cachedSkinInfo.put(baseSkin.getPlayerUuid(), new SkinInfo(baseSkin.getGeometry(), baseSkin.getResourcePatch(), baseSkin.getSkinWidth(), baseSkin.getSkinHeight(), baseSkin.getChunkCount()));
         } else if (payload instanceof SkinDataPayload skinData) {
             this.handle(skinData);
         } else if (payload instanceof CapeDataPayload capePayload) {
-            ViaBedrockUtilityFabric.LOGGER.info("[Skin] Received cape data for player {}", capePayload.getPlayerUuid());
+            ViaBedrockUtilityFabric.LOGGER.debug("[Skin] Received cape data for player {}", capePayload.getPlayerUuid());
             this.handle(capePayload);
         }
     }
@@ -120,7 +120,7 @@ public class PayloadHandler {
         }
 
         info.setData(payload.getSkinData(), payload.getChunkPosition());
-        ViaBedrockUtilityFabric.LOGGER.info("Skin chunk {} received for {}", payload.getChunkPosition(), payload.getPlayerUuid());
+        ViaBedrockUtilityFabric.LOGGER.debug("Skin chunk {} received for {}", payload.getChunkPosition(), payload.getPlayerUuid());
 
         if (info.isComplete()) {
             // All skin data has been received
@@ -134,17 +134,21 @@ public class PayloadHandler {
             ViaBedrockUtilityFabric.LOGGER.error("[Skin] toNativeImage returned null for {}", payload.getPlayerUuid());
             return;
         }
-        ViaBedrockUtilityFabric.LOGGER.info("[Skin] NativeImage created for {} ({}x{})", payload.getPlayerUuid(), info.getWidth(), info.getHeight());
+        ViaBedrockUtilityFabric.LOGGER.debug("[Skin] NativeImage created for {} ({}x{})", payload.getPlayerUuid(), info.getWidth(), info.getHeight());
 
         final MinecraftClient client = MinecraftClient.getInstance();
 
         final Identifier identifier = Identifier.of(ViaBedrockUtilityFabric.MOD_ID, payload.getPlayerUuid().toString());
         client.getTextureManager().registerTexture(identifier, new NativeImageBackedTexture(() -> identifier.toString() + skinImage.hashCode(), skinImage));
-        ViaBedrockUtilityFabric.LOGGER.info("[Skin] Texture registered: {}", identifier);
+        ViaBedrockUtilityFabric.LOGGER.debug("[Skin] Texture registered: {}", identifier);
 
         if (client.getNetworkHandler() != null) {
             final PlayerListEntry entry = client.getNetworkHandler().getPlayerListEntry(payload.getPlayerUuid());
-            ViaBedrockUtilityFabric.LOGGER.info("[Skin] PlayerListEntry lookup for {}: {}", payload.getPlayerUuid(), entry != null ? entry.getProfile().name() : "NOT FOUND");
+            //? if >=1.21.9 {
+            ViaBedrockUtilityFabric.LOGGER.debug("[Skin] PlayerListEntry lookup for {}: {}", payload.getPlayerUuid(), entry != null ? entry.getProfile().name() : "NOT FOUND");
+            //?} else {
+            /*ViaBedrockUtilityFabric.LOGGER.debug("[Skin] PlayerListEntry lookup for {}: {}", payload.getPlayerUuid(), entry != null ? entry.getProfile().getName() : "NOT FOUND");
+            *///?}
 
             // If we can still get player list entry then use this to set skin still a good idea!
             if (entry != null) {
@@ -167,7 +171,7 @@ public class PayloadHandler {
             requiredGeometry = JsonParser.parseString(info.getResourcePatch()).getAsJsonObject()
                     .getAsJsonObject("geometry").get("default").getAsString();
         } catch (Exception ignored) {}
-        ViaBedrockUtilityFabric.LOGGER.info("[Skin] requiredGeometry={} resourcePatch={}", requiredGeometry, info.getResourcePatch());
+        ViaBedrockUtilityFabric.LOGGER.debug("[Skin] requiredGeometry={} resourcePatch={}", requiredGeometry, info.getResourcePatch());
 
         // Hardcoded I know...
         boolean slim = requiredGeometry != null && requiredGeometry.startsWith("geometry.humanoid.customSlim");
@@ -191,7 +195,7 @@ public class PayloadHandler {
                     }
 
                     model = (PlayerEntityModel) GeometryUtil.buildModel(geometry, true, slim);
-                    ViaBedrockUtilityFabric.LOGGER.info("[Skin] Built custom geometry model for {}", payload.getPlayerUuid());
+                    ViaBedrockUtilityFabric.LOGGER.debug("[Skin] Built custom geometry model for {}", payload.getPlayerUuid());
                 }
             } catch (final Exception e) {
                 ViaBedrockUtilityFabric.LOGGER.error("[Skin] Failed to parse geometry for {}: {}", payload.getPlayerUuid(), e.getMessage());
@@ -222,7 +226,7 @@ public class PayloadHandler {
         if (model == null) {
             // This is likely a classic skin with hardcoded identifier! TODO: 128x128
             model = new PlayerEntityModel(PlayerEntityModel.getTexturedModelData(Dilation.NONE, slim).getRoot().createPart(64, 64), slim);
-            ViaBedrockUtilityFabric.LOGGER.info("[Skin] Using default player model (slim={}) for {}", slim, payload.getPlayerUuid());
+            ViaBedrockUtilityFabric.LOGGER.debug("[Skin] Using default player model (slim={}) for {}", slim, payload.getPlayerUuid());
         }
 
         //? if >=1.21.9 {
@@ -238,7 +242,7 @@ public class PayloadHandler {
         *///?}
         this.cachedPlayerRenderers.put(payload.getPlayerUuid(), new CustomPlayerRenderer(entityContext, model, slim, identifier));
         this.cachedPlayerSkins.put(payload.getPlayerUuid(), new CachedPlayerSkin(identifier, slim));
-        ViaBedrockUtilityFabric.LOGGER.info("[Skin] CustomPlayerRenderer created for {}", payload.getPlayerUuid());
+        ViaBedrockUtilityFabric.LOGGER.debug("[Skin] CustomPlayerRenderer created for {}", payload.getPlayerUuid());
 
         // Parse animation overrides from skinResourcePatch.animations
         if (this.packManager != null) {
@@ -260,7 +264,7 @@ public class PayloadHandler {
                     }
                     if (!animManager.isEmpty()) {
                         ((IBedrockAnimatedModel) (Object) model).viaBedrockUtility$setAnimationManager(animManager);
-                        ViaBedrockUtilityFabric.LOGGER.info("[Skin] Loaded {} animation overrides for {}",
+                        ViaBedrockUtilityFabric.LOGGER.debug("[Skin] Loaded {} animation overrides for {}",
                                 animManager.getAffectedBones().size(), payload.getPlayerUuid());
                     }
                 }
@@ -288,7 +292,7 @@ public class PayloadHandler {
             *///?}
 
             ((PlayerSkinFieldAccessor)entry).setPlayerSkin(builder::build);
-            ViaBedrockUtilityFabric.LOGGER.info("[Skin] Final skin applied to PlayerListEntry for {}", payload.getPlayerUuid());
+            ViaBedrockUtilityFabric.LOGGER.debug("[Skin] Final skin applied to PlayerListEntry for {}", payload.getPlayerUuid());
         } else {
             ViaBedrockUtilityFabric.LOGGER.warn("[Skin] Final PlayerListEntry NOT FOUND for {}", payload.getPlayerUuid());
         }

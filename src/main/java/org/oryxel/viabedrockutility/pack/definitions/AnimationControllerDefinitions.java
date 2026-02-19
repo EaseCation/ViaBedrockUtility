@@ -31,7 +31,7 @@ public class AnimationControllerDefinitions {
         }
 
         if (!this.controllers.isEmpty()) {
-            ViaBedrockUtilityFabric.LOGGER.info("[PackManager] Loaded {} animation controllers", this.controllers.size());
+            ViaBedrockUtilityFabric.LOGGER.debug("[PackManager] Loaded {} animation controllers", this.controllers.size());
         }
     }
 }

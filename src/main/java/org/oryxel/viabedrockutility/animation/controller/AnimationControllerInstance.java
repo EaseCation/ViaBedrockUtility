@@ -111,13 +111,13 @@ public class AnimationControllerInstance {
         if (debugTickCounter++ % 60 == 0) { // Log once per ~1 second (60fps)
             try {
                 final Value variantVal = ((MutableObjectBinding) frameScope.get("query")).get("variant");
-                ViaBedrockUtilityFabric.LOGGER.info("[AnimController] {} | state='{}' | variant={} | animators={} | donePlaying={}",
+                ViaBedrockUtilityFabric.LOGGER.debug("[AnimController] {} | state='{}' | variant={} | animators={} | donePlaying={}",
                         definition.getIdentifier(), currentStateName,
                         variantVal != null ? variantVal.getAsNumber() : "null",
                         stateAnimators.size(),
                         stateAnimators.values().stream().map(Animator::isDonePlaying).toList());
             } catch (Throwable e) {
-                ViaBedrockUtilityFabric.LOGGER.info("[AnimController] {} | state='{}' | query error: {}",
+                ViaBedrockUtilityFabric.LOGGER.debug("[AnimController] {} | state='{}' | query error: {}",
                         definition.getIdentifier(), currentStateName, e.getMessage());
             }
         }
@@ -129,7 +129,7 @@ public class AnimationControllerInstance {
                 try {
                     final Value result = MoLangEngine.eval(transitionScope, trans.parsedCondition());
                     if (result.getAsBoolean()) {
-                        ViaBedrockUtilityFabric.LOGGER.info("[AnimController] {} transition: {} → {}",
+                        ViaBedrockUtilityFabric.LOGGER.debug("[AnimController] {} transition: {} → {}",
                                 definition.getIdentifier(), currentStateName, trans.targetState());
                         enterState(trans.targetState(), transitionScope);
                         break;

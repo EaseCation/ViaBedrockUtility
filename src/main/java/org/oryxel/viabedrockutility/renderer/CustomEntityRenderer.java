@@ -73,9 +73,10 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
         this.ticker = ticker;
     }
 
-    //? if >=1.21.9 {
     // Use identity hash as initial offset so different entities' LOD frames are evenly distributed
     private int renderFrameCounter = System.identityHashCode(this);
+
+    //? if >=1.21.9 {
     @Override
     public void render(CustomEntityRenderState state, MatrixStack matrices, OrderedRenderCommandQueue queue, CameraRenderState cameraState) {
         this.renderFrameCounter++;
