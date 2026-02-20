@@ -11,6 +11,7 @@ import org.cube.converter.util.element.Position3V;
 import org.cube.converter.util.element.UVMap;
 import org.joml.Vector3f;
 import org.oryxel.viabedrockutility.fabric.ViaBedrockUtilityFabric;
+import org.oryxel.viabedrockutility.mixin.interfaces.ICuboid;
 import org.oryxel.viabedrockutility.mixin.interfaces.IModelPart;
 import org.oryxel.viabedrockutility.renderer.model.CustomEntityModel;
 
@@ -58,6 +59,17 @@ public final class GeometryUtil {
 
                 final UVMap uvMap = cube.getUvMap().clone();
 
+                // Negative size inverts vertex positions, swapping which face is on which side.
+                // Swap UV assignments so textures remain on the correct geometric faces.
+                // Y axis is not swapped here because the existing Bedrock UP/DOWN convention swap
+                // in correctUv already compensates for the Y inversion.
+                if (sizeX < 0) {
+                    swapUv(uvMap, org.cube.converter.util.element.Direction.EAST, org.cube.converter.util.element.Direction.WEST);
+                }
+                if (sizeZ < 0) {
+                    swapUv(uvMap, org.cube.converter.util.element.Direction.NORTH, org.cube.converter.util.element.Direction.SOUTH);
+                }
+
                 final Set<Direction> set = new HashSet<>();
                 for (final Direction direction : Direction.values()) {
                     if (uvMap.getMap().containsKey(org.cube.converter.util.element.Direction.values()[direction.ordinal()])) {
@@ -67,6 +79,7 @@ public final class GeometryUtil {
 
                 final ModelPart.Cuboid cuboid = new ModelPart.Cuboid(0, 0, pos.getX(), isLeg ? pos.getY() : -(pos.getY() - 24.016F + sizeY), pos.getZ(), sizeX, sizeY, sizeZ, inflate, inflate, inflate, cube.isMirror(), uvWidth, uvHeight, set);
                 correctUv(cuboid, set, uvMap, uvWidth, uvHeight, cube.getInflate(), cube.isMirror());
+                ((ICuboid)(Object) cuboid).viaBedrockUtility$markAsVBU();
 
                 final ModelPart cubePart = new ModelPart(List.of(cuboid), Map.of());
                 ((IModelPart)((Object)cubePart)).viaBedrockUtility$setPivot(new Vector3f(cube.getPivot().getX(), -cube.getPivot().getY() + 24.016F, cube.getPivot().getZ()));
@@ -170,6 +183,16 @@ public final class GeometryUtil {
     }
 
     private record PartInfo(String parent, ModelPart part, Map<String, ModelPart> children) {
+    }
+
+    private static void swapUv(UVMap map, org.cube.converter.util.element.Direction a, org.cube.converter.util.element.Direction b) {
+        Float[] uvA = map.getMap().remove(a);
+        Float[] uvB = map.getMap().remove(b);
+        // Flip U (swap u1↔u2) to compensate for reversed vertex winding on the swapped face.
+        // Each face pair (EAST/WEST, NORTH/SOUTH) has opposite vertex ordering along one axis,
+        // so placing one face's UV on the other requires a horizontal flip.
+        if (uvA != null) map.getMap().put(b, new Float[]{uvA[2], uvA[1], uvA[0], uvA[3]});
+        if (uvB != null) map.getMap().put(a, new Float[]{uvB[2], uvB[1], uvB[0], uvB[3]});
     }
 
     private static void correctUv(final ModelPart.Cuboid cuboid, final Set<Direction> set, final UVMap map, final float uvWidth, final float uvHeight, final float inflate, final boolean mirror) {

@@ -31,34 +31,36 @@ public class ModMenuIntegration implements ModMenuApi {
 
         ConfigBuilder builder = ConfigBuilder.create()
                 .setParentScreen(parent)
-                .setTitle(Text.literal("ViaBedrockUtility Settings"));
+                .setTitle(Text.translatable("config.viabedrockutility.title"));
 
         ConfigCategory category = builder.getOrCreateCategory(
-                Text.literal("Animation LOD"));
+                Text.translatable("config.viabedrockutility.category.entity_animation_lod"));
 
         ConfigEntryBuilder entryBuilder = builder.entryBuilder();
 
         // Preset selector
         category.addEntry(entryBuilder.startEnumSelector(
-                        Text.literal("Preset"),
+                        Text.translatable("config.viabedrockutility.option.preset"),
                         LodConfig.Preset.class,
                         config.getPreset())
                 .setDefaultValue(LodConfig.Preset.BALANCED)
                 .setEnumNameProvider(preset -> switch ((LodConfig.Preset) preset) {
-                    case HIGH_QUALITY -> Text.literal("High Quality");
-                    case BALANCED -> Text.literal("Balanced");
-                    case PERFORMANCE -> Text.literal("Performance");
-                    case CUSTOM -> Text.literal("Custom");
+                    case HIGH_QUALITY -> Text.translatable("config.viabedrockutility.preset.high_quality");
+                    case BALANCED -> Text.translatable("config.viabedrockutility.preset.balanced");
+                    case PERFORMANCE -> Text.translatable("config.viabedrockutility.preset.performance");
+                    case CUSTOM -> Text.translatable("config.viabedrockutility.preset.custom");
                 })
                 .setSaveConsumer(preset -> selectedPreset[0] = preset)
                 .build());
 
         // Tier 1
         category.addEntry(entryBuilder.startIntSlider(
-                        Text.literal("Tier 1 Distance (blocks)"),
+                        Text.translatable("config.viabedrockutility.option.tier1_distance"),
                         origT1Dist, 0, 64)
                 .setDefaultValue(24)
-                .setTextGetter(val -> val == 0 ? Text.literal("Disabled") : Text.literal(val + " blocks"))
+                .setTextGetter(val -> val == 0
+                        ? Text.translatable("config.viabedrockutility.value.disabled")
+                        : Text.translatable("config.viabedrockutility.value.blocks", val))
                 .setSaveConsumer(val -> {
                     config.getTier1().distance = val;
                     if (val != origT1Dist) tierModified[0] = true;
@@ -66,10 +68,10 @@ public class ModMenuIntegration implements ModMenuApi {
                 .build());
 
         category.addEntry(entryBuilder.startIntSlider(
-                        Text.literal("Tier 1 Frame Interval"),
+                        Text.translatable("config.viabedrockutility.option.tier1_interval"),
                         origT1Int, 1, 16)
                 .setDefaultValue(2)
-                .setTextGetter(val -> Text.literal("Every " + val + " frame(s)"))
+                .setTextGetter(val -> Text.translatable("config.viabedrockutility.value.every_frames", val))
                 .setSaveConsumer(val -> {
                     config.getTier1().frameInterval = val;
                     if (val != origT1Int) tierModified[0] = true;
@@ -78,10 +80,12 @@ public class ModMenuIntegration implements ModMenuApi {
 
         // Tier 2
         category.addEntry(entryBuilder.startIntSlider(
-                        Text.literal("Tier 2 Distance (blocks)"),
+                        Text.translatable("config.viabedrockutility.option.tier2_distance"),
                         origT2Dist, 0, 96)
                 .setDefaultValue(48)
-                .setTextGetter(val -> val == 0 ? Text.literal("Disabled") : Text.literal(val + " blocks"))
+                .setTextGetter(val -> val == 0
+                        ? Text.translatable("config.viabedrockutility.value.disabled")
+                        : Text.translatable("config.viabedrockutility.value.blocks", val))
                 .setSaveConsumer(val -> {
                     config.getTier2().distance = val;
                     if (val != origT2Dist) tierModified[0] = true;
@@ -89,10 +93,10 @@ public class ModMenuIntegration implements ModMenuApi {
                 .build());
 
         category.addEntry(entryBuilder.startIntSlider(
-                        Text.literal("Tier 2 Frame Interval"),
+                        Text.translatable("config.viabedrockutility.option.tier2_interval"),
                         origT2Int, 1, 16)
                 .setDefaultValue(4)
-                .setTextGetter(val -> Text.literal("Every " + val + " frame(s)"))
+                .setTextGetter(val -> Text.translatable("config.viabedrockutility.value.every_frames", val))
                 .setSaveConsumer(val -> {
                     config.getTier2().frameInterval = val;
                     if (val != origT2Int) tierModified[0] = true;
@@ -101,10 +105,12 @@ public class ModMenuIntegration implements ModMenuApi {
 
         // Tier 3
         category.addEntry(entryBuilder.startIntSlider(
-                        Text.literal("Tier 3 Distance (blocks)"),
+                        Text.translatable("config.viabedrockutility.option.tier3_distance"),
                         origT3Dist, 0, 128)
                 .setDefaultValue(0)
-                .setTextGetter(val -> val == 0 ? Text.literal("Disabled") : Text.literal(val + " blocks"))
+                .setTextGetter(val -> val == 0
+                        ? Text.translatable("config.viabedrockutility.value.disabled")
+                        : Text.translatable("config.viabedrockutility.value.blocks", val))
                 .setSaveConsumer(val -> {
                     config.getTier3().distance = val;
                     if (val != origT3Dist) tierModified[0] = true;
@@ -112,10 +118,10 @@ public class ModMenuIntegration implements ModMenuApi {
                 .build());
 
         category.addEntry(entryBuilder.startIntSlider(
-                        Text.literal("Tier 3 Frame Interval"),
+                        Text.translatable("config.viabedrockutility.option.tier3_interval"),
                         origT3Int, 1, 16)
                 .setDefaultValue(1)
-                .setTextGetter(val -> Text.literal("Every " + val + " frame(s)"))
+                .setTextGetter(val -> Text.translatable("config.viabedrockutility.value.every_frames", val))
                 .setSaveConsumer(val -> {
                     config.getTier3().frameInterval = val;
                     if (val != origT3Int) tierModified[0] = true;
@@ -124,10 +130,8 @@ public class ModMenuIntegration implements ModMenuApi {
 
         builder.setSavingRunnable(() -> {
             if (tierModified[0]) {
-                // User modified tier sliders → force CUSTOM regardless of preset dropdown
                 config.setPreset(LodConfig.Preset.CUSTOM);
             } else {
-                // User only changed preset (or nothing) → apply preset values
                 config.applyPreset(selectedPreset[0]);
             }
             config.save();

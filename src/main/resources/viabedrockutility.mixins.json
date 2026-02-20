@@ -16,6 +16,7 @@
     "network.ClientLoginNetworkHandlerMixin",
     "network.ClientPlayNetworkHandlerMixin",
     "pack.ServerResourcePackLoaderMixin",
+    "render.CuboidMixin",
     "render.ModelPartMixin",
     "render.PlayerEntityModelMixin",
     "render.PlayerEntityRenderStateMixin",

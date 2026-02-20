@@ -3,31 +3,20 @@ package org.oryxel.viabedrockutility.material.data;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.mojang.blaze3d.pipeline.BlendFunction;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.platform.DepthTestFunction;
-import com.mojang.blaze3d.platform.DestFactor;
-import com.mojang.blaze3d.platform.SourceFactor;
-import com.mojang.blaze3d.vertex.VertexFormat;
-import com.mojang.blaze3d.vertex.VertexFormatElement;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
 import net.minecraft.client.render.*;
+//? if >=1.21.11 {
+import net.minecraft.client.render.RenderLayers;
+//?}
 import net.minecraft.util.Identifier;
 import net.minecraft.util.Util;
 
 import java.util.*;
 import java.util.function.Function;
 
-import static net.minecraft.client.gl.RenderPipelines.ENTITY_SNIPPET;
-//? if <1.21.11 {
-/*import static net.minecraft.client.render.RenderPhase.*;
-*///?}
-//? if <1.21.6 {
-/*import net.minecraft.util.TriState;
-*///?}
 import static org.oryxel.viabedrockutility.util.JsonUtil.*;
 
 // https://wiki.bedrock.dev/visuals/materials
@@ -168,153 +157,34 @@ public record Material(String identifier, String baseIdentifier, MaterialInfo in
 
         public Function<Identifier, RenderLayer> build() {
             return Objects.requireNonNullElseGet(this.function, () -> this.function = Util.memoize(texture -> {
-                final VertexFormat vertexFormat;
-                if (!this.vertexFields.isEmpty()) {
-                    VertexFormat.Builder vertexBuilder = VertexFormat.builder();
-                    //         POSITION_COLOR_TEXTURE_OVERLAY_LIGHT_NORMAL = VertexFormat.
-                    //         builder().add("Position", VertexFormatElement.POSITION).add("Color", VertexFormatElement.COLOR)
-                    //         .add("UV0", VertexFormatElement.UV_0).add("UV1", VertexFormatElement.UV_1)
-                    //         .add("UV2", VertexFormatElement.UV_2).add("Normal", VertexFormatElement.NORMAL).skip(1).build();
-
-                    if (this.vertexFields.contains("Position")) {
-                        vertexBuilder.add("Position", VertexFormatElement.POSITION);
-                    }
-                    if (this.vertexFields.contains("Color")) {
-                        vertexBuilder.add("Color", VertexFormatElement.COLOR);
-                    }
-                    if (this.vertexFields.contains("UV")) {
-                        vertexBuilder.add("UV", VertexFormatElement.UV);
-                    }
-                    if (this.vertexFields.contains("UV0")) {
-                        vertexBuilder.add("UV0", VertexFormatElement.UV0);
-                    }
-                    if (this.vertexFields.contains("BoneId0")) {
-                        // Not entirely sure, educated guess.
-                        vertexBuilder.add("UV1", VertexFormatElement.UV1);
-                        vertexBuilder.add("UV2", VertexFormatElement.UV2);
-                    } else {
-                        if (this.vertexFields.contains("UV1")) {
-                            vertexBuilder.add("UV1", VertexFormatElement.UV1);
-                        }
-                        if (this.vertexFields.contains("UV2")) {
-                            vertexBuilder.add("UV2", VertexFormatElement.UV2);
-                        }
-                    }
-                    if (this.vertexFields.contains("Normal")) {
-                        vertexBuilder.add("Normal", VertexFormatElement.NORMAL).padding(1);
-                    }
-                    vertexFormat = vertexBuilder.build();
-                } else {
-                    vertexFormat = VertexFormats.POSITION_COLOR_TEXTURE_OVERLAY_LIGHT_NORMAL;
-                }
-
-                final BlendFunction blend;
-                if (!this.blendSrc.isBlank() && !this.blendDst.isBlank()) {
-                    final SourceFactor srcFactor = switch (this.blendSrc) {
-                        case "SourceAlpha" -> SourceFactor.SRC_ALPHA;
-                        case "SourceColor" -> SourceFactor.SRC_COLOR;
-                        case "ConstantAlpha" -> SourceFactor.CONSTANT_ALPHA;
-                        case "ConstantColor" -> SourceFactor.CONSTANT_COLOR;
-                        case "DstAlpha" -> SourceFactor.DST_ALPHA;
-                        case "DstColor" -> SourceFactor.DST_COLOR;
-                        case "OneMinusConstantAlpha" -> SourceFactor.ONE_MINUS_CONSTANT_ALPHA;
-                        case "OneMinusConstantColor" -> SourceFactor.ONE_MINUS_CONSTANT_COLOR;
-                        case "OneMinusDstAlpha" -> SourceFactor.ONE_MINUS_DST_ALPHA;
-                        case "OneMinusDstColor" -> SourceFactor.ONE_MINUS_DST_COLOR;
-                        case "OneMinusSrcAlpha" -> SourceFactor.ONE_MINUS_SRC_ALPHA;
-                        case "OneMinusSrcColor" -> SourceFactor.ONE_MINUS_SRC_COLOR;
-                        case "SourceAlphaSaturate" -> SourceFactor.SRC_ALPHA_SATURATE;
-                        case "Zero" -> SourceFactor.ZERO;
-                        default -> SourceFactor.ONE;
-                    };
-
-                    final DestFactor dstFactor = switch (this.blendDst) {
-                        case "SourceAlpha" -> DestFactor.SRC_ALPHA;
-                        case "SourceColor" -> DestFactor.SRC_COLOR;
-                        case "ConstantAlpha" -> DestFactor.CONSTANT_ALPHA;
-                        case "ConstantColor" -> DestFactor.CONSTANT_COLOR;
-                        case "DstAlpha" -> DestFactor.DST_ALPHA;
-                        case "DstColor" -> DestFactor.DST_COLOR;
-                        case "OneMinusConstantAlpha" -> DestFactor.ONE_MINUS_CONSTANT_ALPHA;
-                        case "OneMinusConstantColor" -> DestFactor.ONE_MINUS_CONSTANT_COLOR;
-                        case "OneMinusDstAlpha" -> DestFactor.ONE_MINUS_DST_ALPHA;
-                        case "OneMinusDstColor" -> DestFactor.ONE_MINUS_DST_COLOR;
-                        case "OneMinusSrcAlpha" -> DestFactor.ONE_MINUS_SRC_ALPHA;
-                        case "OneMinusSrcColor" -> DestFactor.ONE_MINUS_SRC_COLOR;
-                        case "Zero" -> DestFactor.ZERO;
-                        default -> DestFactor.ONE;
-                    };
-
-                    blend = new BlendFunction(srcFactor, dstFactor);
-                } else {
-                    blend = BlendFunction.TRANSLUCENT;
-                }
-
-                RenderPipeline.Builder builder = RenderPipeline.builder(ENTITY_SNIPPET).withSampler("Sampler1");
-
-                builder.withLocation(Identifier.of("viabedrockutility", "pipeline/" + UUID.randomUUID() + this.hashCode()));
-                builder.withBlend(blend);
-
-                builder.withVertexFormat(vertexFormat, VertexFormat.DrawMode.QUADS);
-
-                // Totally possible, but not now.
-//                if (!this.fragmentShader.isBlank()) {
-//                    builder.withFragmentShader(this.fragmentShader.replace("shaders/", "").split("\\.")[0]);
-//                }
-//                if (!this.vertexShader.isBlank()) {
-//                    builder.withVertexShader(this.vertexShader.replace("shaders/", "").split("\\.")[0]);
-//                }
-
-                builder.withCull(!this.states.contains("DisableCulling"));
-
-                builder.withDepthTestFunction(switch (this.depthFunc) {
-                    case "Equal" -> DepthTestFunction.EQUAL_DEPTH_TEST;
-                    case "Bigger" -> DepthTestFunction.GREATER_DEPTH_TEST;
-                    default -> DepthTestFunction.LEQUAL_DEPTH_TEST;
-                });
-
-                builder.withDepthWrite(!this.states.contains("DisableDepthWrite"));
-
-                if (this.defines.contains("ALPHA_TEST")) {
-                    builder.withShaderDefine("ALPHA_CUTOUT", 0.1F);
-                }
-
-                if (this.defines.contains("USE_EMISSIVE")) {
-                    builder.withShaderDefine("EMISSIVE");
-                }
-
+                // Use standard MC RenderLayer factory methods so that shader mods (Iris, etc.)
+                // can recognize the RenderPipeline singleton and apply gbuffer programs correctly.
+                // Primary split on DisableCulling: outline/one-sided techniques require cull=true.
+                // USE_EMISSIVE is handled in the renderer via fullbright light override, not here.
                 //? if >=1.21.11 {
-                RenderSetup.Builder setupBuilder = RenderSetup.builder(builder.build());
-                setupBuilder.expectedBufferSize(1536);
-                setupBuilder.crumbling();
-                setupBuilder.translucent();
-
-                if (!this.defines.contains("NO_TEXTURE")) {
-                    setupBuilder.texture("Sampler0", texture);
+                final boolean noCull = this.states.contains("DisableCulling");
+                if (this.states.contains("Blending")) {
+                    return noCull ? RenderLayers.entityTranslucent(texture)
+                                  : RenderLayers.itemEntityTranslucentCull(texture);
+                } else if (this.defines.contains("ALPHA_TEST")) {
+                    return noCull ? RenderLayers.entityCutoutNoCull(texture)
+                                  : RenderLayers.entityCutout(texture);
+                } else {
+                    return RenderLayers.entitySolid(texture);
                 }
-
-                setupBuilder.useLightmap();
-                setupBuilder.useOverlay();
-                return RenderLayer.of("custom", setupBuilder.build());
-                //?} else if >=1.21.6 {
-                /*RenderLayer.MultiPhaseParameters.Builder paramsBuilder = RenderLayer.MultiPhaseParameters.builder();
-                if (!this.defines.contains("NO_TEXTURE")) {
-                    paramsBuilder.texture(new Texture(texture, false));
+                //?} else {
+                /*final boolean noCull = this.states.contains("DisableCulling");
+                if (this.states.contains("Blending")) {
+                    return noCull ? RenderLayer.getEntityTranslucent(texture)
+                                  : RenderLayer.getItemEntityTranslucentCull(texture);
+                } else if (this.defines.contains("ALPHA_TEST")) {
+                    return noCull ? RenderLayer.getEntityCutoutNoCull(texture)
+                                  : RenderLayer.getEntityCutout(texture);
+                } else {
+                    return RenderLayer.getEntitySolid(texture);
                 }
-                paramsBuilder.lightmap(ENABLE_LIGHTMAP);
-                paramsBuilder.overlay(ENABLE_OVERLAY_COLOR);
-                return RenderLayer.of("custom", 1536, true, true, builder.build(), paramsBuilder.build(false));
-                *///?} else {
-                /*RenderLayer.MultiPhaseParameters.Builder paramsBuilder = RenderLayer.MultiPhaseParameters.builder();
-                if (!this.defines.contains("NO_TEXTURE")) {
-                    paramsBuilder.texture(new Texture(texture, TriState.FALSE, false));
-                }
-                paramsBuilder.lightmap(ENABLE_LIGHTMAP);
-                paramsBuilder.overlay(ENABLE_OVERLAY_COLOR);
-                return RenderLayer.of("custom", 1536, true, true, builder.build(), paramsBuilder.build(false));
                 *///?}
             }));
-
         }
 
         public static MaterialInfo emptyMaterial() {

@@ -131,10 +131,12 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
             }
 
             try {
-                RenderLayer renderLayer = model.material.info().getVariants().get("skinning_color").build().apply(model.texture);
+                Material.MaterialInfo.Variant skinningColor = model.material.info().getVariants().get("skinning_color");
+                RenderLayer renderLayer = skinningColor.build().apply(model.texture);
                 if (renderLayer != null) {
                     int effectiveLight = state.light;
-                    if (model.controller() != null && model.controller().ignoreLighting()) {
+                    if ((model.controller() != null && model.controller().ignoreLighting())
+                            || skinningColor.getDefines().contains("USE_EMISSIVE")) {
                         effectiveLight = LightmapTextureManager.MAX_LIGHT_COORDINATE;
                     }
 
@@ -197,10 +199,12 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
                 }
             }
 
-            RenderLayer renderLayer = model.material.info().getVariants().get("skinning_color").build().apply(model.texture);
+            Material.MaterialInfo.Variant skinningColor = model.material.info().getVariants().get("skinning_color");
+            RenderLayer renderLayer = skinningColor.build().apply(model.texture);
             if (renderLayer != null) {
                 int effectiveLight = light;
-                if (model.controller() != null && model.controller().ignoreLighting()) {
+                if ((model.controller() != null && model.controller().ignoreLighting())
+                        || skinningColor.getDefines().contains("USE_EMISSIVE")) {
                     effectiveLight = LightmapTextureManager.MAX_LIGHT_COORDINATE;
                 }
 

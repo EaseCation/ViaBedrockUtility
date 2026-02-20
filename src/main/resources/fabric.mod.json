@@ -14,6 +14,9 @@
 		],
 		"modmenu": [
 			"org.oryxel.viabedrockutility.config.ModMenuIntegration"
+		],
+		"sodium:config_api_user": [
+			"org.oryxel.viabedrockutility.config.SodiumConfigIntegration"
 		]
 	},
 	"mixins": [
@@ -28,6 +31,7 @@
 	},
 	"suggests": {
 		"modmenu": "*",
-		"cloth-config": ">=18.0.0"
+		"cloth-config": ">=18.0.0",
+		"sodium": "*"
 	}
 }
