@@ -15,31 +15,45 @@ def mcVersion = stonecutter.current.project
 def versionConfig = [
 	'1.21.5': [
 		yarn: '1.21.5+build.1',
-		fabricApi: '0.119.5+1.21.5'
+		fabricApi: '0.119.5+1.21.5',
+		clothConfig: '18.0.145',
+		modMenu: '14.0.1'
 	],
 	'1.21.6': [
 		yarn: '1.21.6+build.1',
-		fabricApi: '0.125.2+1.21.6'
+		fabricApi: '0.125.2+1.21.6',
+		clothConfig: '19.0.147',
+		modMenu: '15.0.1'
 	],
 	'1.21.7': [
 		yarn: '1.21.7+build.1',
-		fabricApi: '0.128.1+1.21.7'
+		fabricApi: '0.128.1+1.21.7',
+		clothConfig: '19.0.147',
+		modMenu: '15.0.1'
 	],
 	'1.21.8': [
 		yarn: '1.21.8+build.1',
-		fabricApi: '0.134.0+1.21.8'
+		fabricApi: '0.134.0+1.21.8',
+		clothConfig: '19.0.147',
+		modMenu: '15.0.1'
 	],
 	'1.21.9': [
 		yarn: '1.21.9+build.1',
-		fabricApi: '0.134.1+1.21.9'
+		fabricApi: '0.134.1+1.21.9',
+		clothConfig: '20.0.149',
+		modMenu: '16.0.0'
 	],
 	'1.21.10': [
 		yarn: '1.21.10+build.3',
-		fabricApi: '0.138.4+1.21.10'
+		fabricApi: '0.138.4+1.21.10',
+		clothConfig: '20.0.149',
+		modMenu: '16.0.0'
 	],
 	'1.21.11': [
 		yarn: '1.21.11+build.4',
-		fabricApi: '0.141.3+1.21.11'
+		fabricApi: '0.141.3+1.21.11',
+		clothConfig: '21.11.153',
+		modMenu: '17.0.0-beta.2'
 	]
 ][mcVersion]
 
@@ -71,6 +85,14 @@ repositories {
 			includeGroup "com.github.EaseCation"
 		}
 	}
+	maven {
+		name = "Shedaniel"
+		url = "https://maven.shedaniel.me/"
+	}
+	maven {
+		name = "Terraformers"
+		url = "https://maven.terraformersmc.com/"
+	}
 }
 
 dependencies {
@@ -90,6 +112,12 @@ dependencies {
 	lib("team.unnamed:mocha:3.0.1") {
 		transitive = false
 	}
+
+	// Optional dependencies for ModMenu config screen (not bundled in jar)
+	modCompileOnly("me.shedaniel.cloth:cloth-config-fabric:${versionConfig.clothConfig}") {
+		exclude(group: "net.fabricmc.fabric-api")
+	}
+	modCompileOnly "com.terraformersmc:modmenu:${versionConfig.modMenu}"
 }
 
 processResources {

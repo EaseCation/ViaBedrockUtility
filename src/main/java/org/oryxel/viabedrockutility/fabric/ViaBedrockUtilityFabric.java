@@ -3,6 +3,7 @@ package org.oryxel.viabedrockutility.fabric;
 import net.fabricmc.api.ModInitializer;
 
 import org.oryxel.viabedrockutility.ViaBedrockUtility;
+import org.oryxel.viabedrockutility.config.LodConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -13,6 +14,7 @@ public class ViaBedrockUtilityFabric implements ModInitializer {
 	@Override
 	public void onInitialize() {
 		LOGGER.debug("ViaBedrockUtility initialized");
+		LodConfig.load();
 		ViaBedrockUtility.getInstance().init();
 	}
 }

@@ -11,6 +11,9 @@
 	"entrypoints": {
 		"main": [
 			"org.oryxel.viabedrockutility.fabric.ViaBedrockUtilityFabric"
+		],
+		"modmenu": [
+			"org.oryxel.viabedrockutility.config.ModMenuIntegration"
 		]
 	},
 	"mixins": [
@@ -24,6 +27,7 @@
 		"fabric-api": "*"
 	},
 	"suggests": {
-		"another-mod": "*"
+		"modmenu": "*",
+		"cloth-config": ">=18.0.0"
 	}
 }

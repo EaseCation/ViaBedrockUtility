@@ -10,6 +10,7 @@ import org.cube.converter.model.impl.bedrock.BedrockGeometryModel;
 import org.cube.converter.util.element.Position3V;
 import org.cube.converter.util.element.UVMap;
 import org.joml.Vector3f;
+import org.oryxel.viabedrockutility.fabric.ViaBedrockUtilityFabric;
 import org.oryxel.viabedrockutility.mixin.interfaces.IModelPart;
 import org.oryxel.viabedrockutility.renderer.model.CustomEntityModel;
 
@@ -96,14 +97,47 @@ public final class GeometryUtil {
             root = new PartInfo("", new ModelPart(List.of(), rootParts), rootParts);
         }
 
+        // Detect all cycles in the parent graph (handles A→A, A→B→A, A→B→C→A, etc.)
+        final Map<String, String> parentGraph = new HashMap<>();
+        for (Map.Entry<String, PartInfo> entry : stringToPart.entrySet()) {
+            if (!entry.getValue().parent.isBlank()) {
+                parentGraph.put(entry.getKey(), entry.getValue().parent);
+            }
+        }
+
+        final Set<String> cyclicBones = new HashSet<>();
+        final Set<String> processed = new HashSet<>();
+        for (String bone : parentGraph.keySet()) {
+            if (processed.contains(bone)) continue;
+            final Set<String> path = new LinkedHashSet<>();
+            String current = bone;
+            while (current != null && !processed.contains(current)) {
+                if (path.contains(current)) {
+                    boolean inCycle = false;
+                    final List<String> cycleMembers = new ArrayList<>();
+                    for (String p : path) {
+                        if (p.equals(current)) inCycle = true;
+                        if (inCycle) cycleMembers.add(p);
+                    }
+                    cyclicBones.addAll(cycleMembers);
+                    ViaBedrockUtilityFabric.LOGGER.warn(
+                            "[GeometryUtil] Detected circular parent chain: {} — breaking cycle by attaching to root",
+                            String.join(" → ", cycleMembers) + " → " + current);
+                    break;
+                }
+                path.add(current);
+                current = parentGraph.get(current);
+            }
+            processed.addAll(path);
+        }
+
         for (Map.Entry<String, PartInfo> entry : stringToPart.entrySet()) {
             if (entry.getValue().parent.isBlank() && entry.getValue().part() != root.part) {
                 root.children.put(entry.getKey(), entry.getValue().part());
                 continue;
             }
 
-            // Skip self-referencing parents to prevent circular ModelPart trees (StackOverflowError)
-            if (entry.getKey().equals(entry.getValue().parent)) {
+            if (cyclicBones.contains(entry.getKey())) {
                 root.children.put(entry.getKey(), entry.getValue().part());
                 continue;
             }

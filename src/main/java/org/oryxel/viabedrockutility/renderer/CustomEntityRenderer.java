@@ -25,6 +25,7 @@ import net.minecraft.util.math.Vec3d;
 import org.cube.converter.data.bedrock.controller.BedrockRenderController;
 import org.oryxel.viabedrockutility.animation.animator.Animator;
 import org.oryxel.viabedrockutility.animation.controller.AnimationControllerInstance;
+import org.oryxel.viabedrockutility.config.LodConfig;
 import org.oryxel.viabedrockutility.entity.CustomEntityTicker;
 import org.oryxel.viabedrockutility.fabric.ViaBedrockUtilityFabric;
 import org.oryxel.viabedrockutility.material.data.Material;
@@ -81,14 +82,8 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
     public void render(CustomEntityRenderState state, MatrixStack matrices, OrderedRenderCommandQueue queue, CameraRenderState cameraState) {
         this.renderFrameCounter++;
 
-        // Distance-based LOD: skip animation computation for distant entities
-        boolean shouldAnimate = true;
-        double dist = state.getDistanceFromCamera();
-        if (dist > 48.0) {
-            shouldAnimate = (this.renderFrameCounter % 4 == 0);
-        } else if (dist > 24.0) {
-            shouldAnimate = (this.renderFrameCounter % 2 == 0);
-        }
+        // Distance-based LOD: skip animation computation for distant entities (configurable)
+        boolean shouldAnimate = LodConfig.getInstance().shouldAnimate(state.getDistanceFromCamera(), this.renderFrameCounter);
 
         final Scope frameScope;
         if (shouldAnimate) {
@@ -159,13 +154,7 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
     public void render(CustomEntityRenderState state, MatrixStack matrices, VertexConsumerProvider vertexConsumers, int light) {
         this.renderFrameCounter++;
 
-        boolean shouldAnimate = true;
-        double dist = state.getDistanceFromCamera();
-        if (dist > 48.0) {
-            shouldAnimate = (this.renderFrameCounter % 4 == 0);
-        } else if (dist > 24.0) {
-            shouldAnimate = (this.renderFrameCounter % 2 == 0);
-        }
+        boolean shouldAnimate = LodConfig.getInstance().shouldAnimate(state.getDistanceFromCamera(), this.renderFrameCounter);
 
         final Scope frameScope;
         if (shouldAnimate) {
