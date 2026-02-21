@@ -21,6 +21,10 @@ public final class GeometryUtil {
     private static final List<String> LEG_RELATED = List.of("leftleg", "rightleg", "rightpants", "leftpants");
 
     public static Model buildModel(final BedrockGeometryModel geometry, final boolean player, boolean slim) {
+        return buildModel(geometry, player, slim, null);
+    }
+
+    public static Model buildModel(final BedrockGeometryModel geometry, final boolean player, boolean slim, final String geometryName) {
         // There are some times when the skin image file is larger than the geometry UV points.
         // In this case, we need to scale UV calls
         // https://github.com/Camotoy/BedrockSkinUtility/issues/9
@@ -155,11 +159,20 @@ public final class GeometryUtil {
                 continue;
             }
 
+            // The tree root must not be re-added as a child of any other bone
+            // (e.g. Bedrock skins with "world" → "root" hierarchy where "root" is already the tree root)
+            if (entry.getValue().part() == root.part()) {
+                continue;
+            }
+
             PartInfo parentPart = stringToPart.get(entry.getValue().parent);
             if (parentPart != null) {
                 parentPart.children.put(entry.getKey(), entry.getValue().part);
             }
         }
+
+        // Validate the actual ModelPart tree for cycles (identity-based, not name-based)
+        validateAndFixCycles(root.part(), "root", new IdentityHashMap<>(), new ArrayList<>(), geometryName);
 
         return player ? new PlayerEntityModel(root.part(), slim) : new CustomEntityModel<>(root.part());
     }
@@ -180,6 +193,43 @@ public final class GeometryUtil {
             case "rightleg" -> "right_leg";
             default -> name.toLowerCase(Locale.ROOT);
         };
+    }
+
+    /**
+     * DFS validation of the actual ModelPart tree using object identity.
+     * Detects and removes cyclic edges that the name-based detection might miss.
+     */
+    private static void validateAndFixCycles(ModelPart part, String name, IdentityHashMap<ModelPart, String> ancestors, List<String> path, String geometryName) {
+        if (ancestors.containsKey(part)) {
+            // This ModelPart object is already an ancestor — cycle detected!
+            String cyclePath = String.join(" → ", path) + " → " + name + " (CYCLE to '" + ancestors.get(part) + "')";
+            ViaBedrockUtilityFabric.LOGGER.error(
+                    "[GeometryUtil] RUNTIME ModelPart CYCLE DETECTED in geometry '{}': {}",
+                    geometryName != null ? geometryName : "unknown", cyclePath);
+            return; // caller will remove this edge
+        }
+
+        ancestors.put(part, name);
+        path.add(name);
+
+        Map<String, ModelPart> children = ((IModelPart) ((Object) part)).viaBedrockUtility$getChildren();
+        Iterator<Map.Entry<String, ModelPart>> it = children.entrySet().iterator();
+        while (it.hasNext()) {
+            Map.Entry<String, ModelPart> entry = it.next();
+            if (ancestors.containsKey(entry.getValue())) {
+                // Child points to an ancestor — remove this cyclic edge
+                String cyclePath = String.join(" → ", path) + " → " + entry.getKey() + " (CYCLE to '" + ancestors.get(entry.getValue()) + "')";
+                ViaBedrockUtilityFabric.LOGGER.error(
+                        "[GeometryUtil] Removing cyclic ModelPart edge in geometry '{}': {}",
+                        geometryName != null ? geometryName : "unknown", cyclePath);
+                it.remove();
+            } else {
+                validateAndFixCycles(entry.getValue(), entry.getKey(), ancestors, path, geometryName);
+            }
+        }
+
+        path.remove(path.size() - 1);
+        ancestors.remove(part);
     }
 
     private record PartInfo(String parent, ModelPart part, Map<String, ModelPart> children) {

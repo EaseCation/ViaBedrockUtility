@@ -21,6 +21,9 @@ public abstract class CuboidMixin implements ICuboid {
     @Unique
     private boolean isVBU = false;
 
+    @Unique
+    private float vOffset = 0f;
+
     @Override
     public boolean viaBedrockUtility$isVBUCuboid() {
         return this.isVBU;
@@ -29,6 +32,16 @@ public abstract class CuboidMixin implements ICuboid {
     @Override
     public void viaBedrockUtility$markAsVBU() {
         this.isVBU = true;
+    }
+
+    @Override
+    public float viaBedrockUtility$getVOffset() {
+        return this.vOffset;
+    }
+
+    @Override
+    public void viaBedrockUtility$setVOffset(float offset) {
+        this.vOffset = offset;
     }
 
     @Inject(method = "renderCuboid", at = @At("HEAD"), cancellable = true)
@@ -59,7 +72,7 @@ public abstract class CuboidMixin implements ICuboid {
                 *///?}
 
                 Vector3f pos = posMatrix.transformPosition(wx, wy, wz, tempVec);
-                buffer.vertex(pos.x(), pos.y(), pos.z(), color, vertex.u(), vertex.v(), overlay, light, nx, ny, nz);
+                buffer.vertex(pos.x(), pos.y(), pos.z(), color, vertex.u(), vertex.v() + this.vOffset, overlay, light, nx, ny, nz);
             }
         }
     }

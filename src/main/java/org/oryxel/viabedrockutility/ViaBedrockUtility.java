@@ -3,6 +3,7 @@ package org.oryxel.viabedrockutility;
 import com.mojang.brigadier.Command;
 import lombok.Getter;
 import lombok.Setter;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
@@ -36,6 +37,13 @@ public class ViaBedrockUtility {
         PayloadTypeRegistry.configurationS2C().register(BasePayload.ID, BasePayload.STREAM_CODEC);
         PayloadTypeRegistry.playS2C().register(BasePayload.ID, BasePayload.STREAM_CODEC);
         ClientPlayNetworking.registerGlobalReceiver(BasePayload.ID, (payload, context) -> payload.handle(this.payloadHandler));
+
+        // Tick animation overlays on all cached player renderers
+        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            if (this.payloadHandler != null) {
+                this.payloadHandler.tickAnimationOverlays();
+            }
+        });
 
         // To enable debugging in order to use animate test thingy (look at ClientPlayNetworkHandler)
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) ->

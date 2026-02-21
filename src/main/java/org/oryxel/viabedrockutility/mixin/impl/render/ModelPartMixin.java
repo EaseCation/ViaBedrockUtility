@@ -15,8 +15,11 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+import org.oryxel.viabedrockutility.fabric.ViaBedrockUtilityFabric;
+
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiConsumer;
 //? if <1.21.6 {
 /*import java.util.stream.Stream;
 *///?}
@@ -26,6 +29,7 @@ public abstract class ModelPartMixin implements IModelPart {
     @Shadow public float originX;
     @Shadow public float originZ;
 
+    @Shadow @Final private List<ModelPart.Cuboid> cuboids;
     @Shadow @Final private Map<String, ModelPart> children;
 
     //? if >=1.21.6 {
@@ -144,6 +148,11 @@ public abstract class ModelPartMixin implements IModelPart {
     }
 
     @Override
+    public List<ModelPart.Cuboid> viaBedrockUtility$getCuboids() {
+        return this.cuboids;
+    }
+
+    @Override
     public void viaBedrockUtility$setAngles(Vector3f vec3) {
         if (!this.alreadySetRotation) {
             this.defaultRotation.set(vec3.x, vec3.y, vec3.z);
@@ -152,4 +161,49 @@ public abstract class ModelPartMixin implements IModelPart {
 
         this.rotation.set(vec3.x, vec3.y, vec3.z);
     }
+
+    // --- forEachChild depth guard (DISABLED — kept for debugging cyclic ModelPart trees) ---
+    // This mixin injects into every ModelPart.forEachChild call (all entities, every frame),
+    // so it has non-trivial performance overhead from ThreadLocal access.
+    // The root cause (Bedrock skins with "world" → "root" hierarchy) is now fixed in
+    // GeometryUtil.buildModel() via the root.part() identity check + validateAndFixCycles safety net.
+    //
+    // To re-enable: uncomment the @Inject annotations below, and add this class back to
+    // viabedrockutility.mixins.json under "client" as "render.ModelPartForEachChildMixin"
+    // (or keep it in ModelPartMixin if it's still registered there).
+
+    /*
+    @Unique
+    private static final ThreadLocal<Integer> vbu$forEachChildDepth = ThreadLocal.withInitial(() -> 0);
+
+    @Unique
+    private static final int VBU_MAX_FOREACHECHILD_DEPTH = 200;
+
+    @Unique
+    private static volatile boolean vbu$depthWarningLogged = false;
+
+    @Inject(method = "forEachChild", at = @At("HEAD"), cancellable = true)
+    private void vbu$onForEachChildHead(BiConsumer<String, ModelPart> consumer, CallbackInfo ci) {
+        int depth = vbu$forEachChildDepth.get();
+        if (depth > VBU_MAX_FOREACHECHILD_DEPTH) {
+            if (!vbu$depthWarningLogged) {
+                vbu$depthWarningLogged = true;
+                ViaBedrockUtilityFabric.LOGGER.error(
+                        "[VBU] ModelPart.forEachChild depth > {} — likely cycle! bone='{}', isVBU={}. Suppressing further warnings.",
+                        VBU_MAX_FOREACHECHILD_DEPTH, this.name, this.isVBUModel);
+            }
+            ci.cancel();
+            return;
+        }
+        vbu$forEachChildDepth.set(depth + 1);
+    }
+
+    @Inject(method = "forEachChild", at = @At("RETURN"))
+    private void vbu$onForEachChildReturn(BiConsumer<String, ModelPart> consumer, CallbackInfo ci) {
+        int depth = vbu$forEachChildDepth.get();
+        if (depth > 0) {
+            vbu$forEachChildDepth.set(depth - 1);
+        }
+    }
+    */
 }

@@ -79,6 +79,12 @@ public class BasePayload implements CustomPayload {
             case SKIN_DATA -> {
                 return SkinDataPayload.STREAM_DECODER.decode(buf);
             }
+            case SKIN_ANIMATION_INFO -> {
+                return SkinAnimationInfoPayload.STREAM_DECODER.decode(buf);
+            }
+            case SKIN_ANIMATION_DATA -> {
+                return SkinAnimationDataPayload.STREAM_DECODER.decode(buf);
+            }
 
             default -> throw new IllegalStateException("Unexpected value: " + PayloadType.values()[type]);
         }

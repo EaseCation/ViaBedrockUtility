@@ -7,8 +7,13 @@ import net.minecraft.client.render.entity.state.PlayerEntityRenderState;
 import net.minecraft.util.Identifier;
 import org.oryxel.viabedrockutility.mixin.interfaces.ICustomPlayerRendererHolder;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
 public class CustomPlayerRenderer extends PlayerEntityRenderer {
     private final Identifier texture;
+    private final List<AnimatedSkinOverlay> overlays = new ArrayList<>();
 
     public CustomPlayerRenderer(final EntityRendererFactory.Context ctx, final PlayerEntityModel model, final boolean slim, Identifier texture) {
         super(ctx, slim);
@@ -18,6 +23,7 @@ public class CustomPlayerRenderer extends PlayerEntityRenderer {
         }
 
         this.texture = texture;
+        this.addFeature(new AnimatedOverlayFeatureRenderer(this));
     }
 
     @Override
@@ -30,5 +36,19 @@ public class CustomPlayerRenderer extends PlayerEntityRenderer {
     @Override
     public Identifier getTexture(PlayerEntityRenderState playerEntityRenderState) {
         return this.texture;
+    }
+
+    public List<AnimatedSkinOverlay> getOverlays() {
+        return Collections.unmodifiableList(overlays);
+    }
+
+    public void addOverlay(AnimatedSkinOverlay overlay) {
+        this.overlays.add(overlay);
+    }
+
+    public void tickOverlays() {
+        for (AnimatedSkinOverlay overlay : overlays) {
+            overlay.tick();
+        }
     }
 }

@@ -143,6 +143,11 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
                     RenderCommandQueue batchQueue = queue.getBatchingQueue(0);
                     batchQueue.submitModelPart(model.model.getRootPart(), matrices, renderLayer, effectiveLight, OverlayTexture.packUv(0, 10), null);
                 }
+            } catch (StackOverflowError soe) {
+                ViaBedrockUtilityFabric.LOGGER.error(
+                        "[VBU] StackOverflow rendering model! key='{}', geometry='{}', texture='{}'",
+                        model.key(), model.geometry(), model.texture());
+                dumpModelHierarchy(model.model().getRootPart(), "", 0);
             } catch (Exception e) {
                 ViaBedrockUtilityFabric.LOGGER.debug("[Render] Error rendering model key={}, texture={}", model.key(), model.texture(), e);
             }
@@ -199,17 +204,26 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
                 }
             }
 
-            Material.MaterialInfo.Variant skinningColor = model.material.info().getVariants().get("skinning_color");
-            RenderLayer renderLayer = skinningColor.build().apply(model.texture);
-            if (renderLayer != null) {
-                int effectiveLight = light;
-                if ((model.controller() != null && model.controller().ignoreLighting())
-                        || skinningColor.getDefines().contains("USE_EMISSIVE")) {
-                    effectiveLight = LightmapTextureManager.MAX_LIGHT_COORDINATE;
-                }
+            try {
+                Material.MaterialInfo.Variant skinningColor = model.material.info().getVariants().get("skinning_color");
+                RenderLayer renderLayer = skinningColor.build().apply(model.texture);
+                if (renderLayer != null) {
+                    int effectiveLight = light;
+                    if ((model.controller() != null && model.controller().ignoreLighting())
+                            || skinningColor.getDefines().contains("USE_EMISSIVE")) {
+                        effectiveLight = LightmapTextureManager.MAX_LIGHT_COORDINATE;
+                    }
 
-                VertexConsumer vertexConsumer = vertexConsumers.getBuffer(renderLayer);
-                model.model.render(matrices, vertexConsumer, effectiveLight, OverlayTexture.packUv(0, 10));
+                    VertexConsumer vertexConsumer = vertexConsumers.getBuffer(renderLayer);
+                    model.model.render(matrices, vertexConsumer, effectiveLight, OverlayTexture.packUv(0, 10));
+                }
+            } catch (StackOverflowError soe) {
+                ViaBedrockUtilityFabric.LOGGER.error(
+                        "[VBU] StackOverflow rendering model! key='{}', geometry='{}', texture='{}'",
+                        model.key(), model.geometry(), model.texture());
+                dumpModelHierarchy(model.model().getRootPart(), "", 0);
+            } catch (Exception e) {
+                ViaBedrockUtilityFabric.LOGGER.debug("[Render] Error rendering model key={}, texture={}", model.key(), model.texture(), e);
             }
 
             matrices.pop();
@@ -527,9 +541,18 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
      * to reach the visible descendant.
      */
     private boolean ensureAncestorsVisible(ModelPart part) {
+        return ensureAncestorsVisibleImpl(part, 0);
+    }
+
+    private boolean ensureAncestorsVisibleImpl(ModelPart part, int depth) {
+        if (depth > 200) {
+            ViaBedrockUtilityFabric.LOGGER.error("[VBU] ensureAncestorsVisible depth > 200 — likely cycle! bone='{}'",
+                    ((IModelPart) ((Object) part)).viaBedrockUtility$getName());
+            return false;
+        }
         boolean anyChildVisible = false;
         for (ModelPart child : ((IModelPart) ((Object) part)).viaBedrockUtility$getChildren().values()) {
-            if (ensureAncestorsVisible(child)) {
+            if (ensureAncestorsVisibleImpl(child, depth + 1)) {
                 anyChildVisible = true;
             }
         }
@@ -537,6 +560,25 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
             part.visible = true;
         }
         return part.visible;
+    }
+
+    /**
+     * Dumps ModelPart tree hierarchy to log for debugging cyclic references.
+     * Uses IdentityHashSet to detect and report cycles.
+     */
+    private void dumpModelHierarchy(ModelPart part, String indent, int depth) {
+        if (depth > 20) {
+            ViaBedrockUtilityFabric.LOGGER.error("{}... (truncated at depth 20)", indent);
+            return;
+        }
+        String name = ((IModelPart) ((Object) part)).viaBedrockUtility$getName();
+        boolean isVBU = ((IModelPart) ((Object) part)).viaBedrockUtility$isVBUModel();
+        Map<String, ModelPart> children = ((IModelPart) ((Object) part)).viaBedrockUtility$getChildren();
+        ViaBedrockUtilityFabric.LOGGER.error("{}bone='{}' isVBU={} children={} identity={}",
+                indent, name, isVBU, children.size(), System.identityHashCode(part));
+        for (Map.Entry<String, ModelPart> entry : children.entrySet()) {
+            dumpModelHierarchy(entry.getValue(), indent + "  ", depth + 1);
+        }
     }
 
     private boolean evalVisibility(String expression, Scope scope) {

@@ -30,10 +30,13 @@ import org.oryxel.viabedrockutility.payload.handler.CustomEntityPayloadHandler;
 import org.oryxel.viabedrockutility.payload.impl.entity.ModelRequestPayload;
 import org.oryxel.viabedrockutility.payload.impl.skin.BaseSkinPayload;
 import org.oryxel.viabedrockutility.payload.impl.skin.CapeDataPayload;
+import org.oryxel.viabedrockutility.payload.impl.skin.SkinAnimationDataPayload;
+import org.oryxel.viabedrockutility.payload.impl.skin.SkinAnimationInfoPayload;
 import org.oryxel.viabedrockutility.payload.impl.skin.SkinDataPayload;
 import org.oryxel.viabedrockutility.animation.PlayerAnimationManager;
 import org.oryxel.viabedrockutility.mixin.interfaces.IBedrockAnimatedModel;
 import org.oryxel.viabedrockutility.pack.definitions.AnimationDefinitions;
+import org.oryxel.viabedrockutility.renderer.AnimatedSkinOverlay;
 import org.oryxel.viabedrockutility.renderer.CustomPlayerRenderer;
 import org.oryxel.viabedrockutility.util.GeometryUtil;
 
@@ -50,6 +53,7 @@ public class PayloadHandler {
     protected final Map<UUID, Identifier> cachedPlayerCapes = new ConcurrentHashMap<>();
     protected final Map<UUID, SkinInfo> cachedSkinInfo = new ConcurrentHashMap<>();
     protected final Map<UUID, CachedPlayerSkin> cachedPlayerSkins = new ConcurrentHashMap<>();
+    protected final Map<UUID, Map<Integer, PendingAnimation>> pendingAnimations = new ConcurrentHashMap<>();
     protected PackManager packManager;
 
     public void handle(final BasePayload payload) {
@@ -72,6 +76,10 @@ public class PayloadHandler {
         } else if (payload instanceof CapeDataPayload capePayload) {
             ViaBedrockUtilityFabric.LOGGER.debug("[Skin] Received cape data for player {}", capePayload.getPlayerUuid());
             this.handle(capePayload);
+        } else if (payload instanceof SkinAnimationInfoPayload animInfo) {
+            this.handle(animInfo);
+        } else if (payload instanceof SkinAnimationDataPayload animData) {
+            this.handle(animData);
         }
     }
 
@@ -241,7 +249,7 @@ public class PayloadHandler {
                 client.textRenderer);
         *///?}
         this.cachedPlayerRenderers.put(payload.getPlayerUuid(), new CustomPlayerRenderer(entityContext, model, slim, identifier));
-        this.cachedPlayerSkins.put(payload.getPlayerUuid(), new CachedPlayerSkin(identifier, slim));
+        this.cachedPlayerSkins.put(payload.getPlayerUuid(), new CachedPlayerSkin(identifier, slim, info.getGeometryRaw(), info.getResourcePatch()));
         ViaBedrockUtilityFabric.LOGGER.debug("[Skin] CustomPlayerRenderer created for {}", payload.getPlayerUuid());
 
         // Parse animation overrides from skinResourcePatch.animations
@@ -353,16 +361,214 @@ public class PayloadHandler {
         cachedPlayerCapes.remove(uuid);
         cachedPlayerSkins.remove(uuid);
         cachedSkinInfo.remove(uuid);
+        pendingAnimations.remove(uuid);
     }
 
     @Getter
     public static class CachedPlayerSkin {
         private final Identifier textureId;
         private final boolean slim;
+        private final String geometryRaw;
+        private final String resourcePatch;
 
-        public CachedPlayerSkin(Identifier textureId, boolean slim) {
+        public CachedPlayerSkin(Identifier textureId, boolean slim, String geometryRaw, String resourcePatch) {
             this.textureId = textureId;
             this.slim = slim;
+            this.geometryRaw = geometryRaw;
+            this.resourcePatch = resourcePatch;
+        }
+    }
+
+    public void handle(final SkinAnimationInfoPayload payload) {
+        if (payload.getType() == 1) {
+            // Face animation uses poly_mesh format which CubeConverter doesn't support — skip
+            ViaBedrockUtilityFabric.LOGGER.debug("[Skin] Skipping face animation (type=1) for {}", payload.getPlayerUuid());
+            return;
+        }
+
+        ViaBedrockUtilityFabric.LOGGER.debug("[Skin] Received animation info: uuid={} index={} type={} frames={} {}x{} chunks={}",
+                payload.getPlayerUuid(), payload.getAnimIndex(), payload.getType(),
+                payload.getFrames(), payload.getWidth(), payload.getHeight(), payload.getChunkCount());
+
+        final PendingAnimation pending = new PendingAnimation(
+                payload.getAnimIndex(), payload.getType(),
+                (int) payload.getFrames(), payload.getExpression(),
+                payload.getWidth(), payload.getHeight(),
+                payload.getChunkCount()
+        );
+
+        pendingAnimations
+                .computeIfAbsent(payload.getPlayerUuid(), k -> new ConcurrentHashMap<>())
+                .put(payload.getAnimIndex(), pending);
+    }
+
+    public void handle(final SkinAnimationDataPayload payload) {
+        final Map<Integer, PendingAnimation> anims = pendingAnimations.get(payload.getPlayerUuid());
+        if (anims == null) return;
+
+        final PendingAnimation pending = anims.get(payload.getAnimIndex());
+        if (pending == null) return;
+
+        pending.setData(payload.getData(), payload.getChunkPosition());
+        ViaBedrockUtilityFabric.LOGGER.debug("[Skin] Animation data chunk {} received for {} index={}",
+                payload.getChunkPosition(), payload.getPlayerUuid(), payload.getAnimIndex());
+
+        if (pending.isComplete()) {
+            anims.remove(payload.getAnimIndex());
+            if (anims.isEmpty()) {
+                pendingAnimations.remove(payload.getPlayerUuid());
+            }
+            buildAnimationOverlay(payload.getPlayerUuid(), pending);
+        }
+    }
+
+    private void buildAnimationOverlay(UUID playerUuid, PendingAnimation pending) {
+        final CachedPlayerSkin cachedSkin = cachedPlayerSkins.get(playerUuid);
+        if (cachedSkin == null) {
+            ViaBedrockUtilityFabric.LOGGER.warn("[Skin] No cached skin for animation overlay, uuid={}", playerUuid);
+            return;
+        }
+
+        final EntityRenderer<?, ?> renderer = cachedPlayerRenderers.get(playerUuid);
+        if (!(renderer instanceof CustomPlayerRenderer customRenderer)) {
+            ViaBedrockUtilityFabric.LOGGER.warn("[Skin] No CustomPlayerRenderer for animation overlay, uuid={}", playerUuid);
+            return;
+        }
+
+        final String geometryKey = switch (pending.type) {
+            case 2 -> "animated_32x32";
+            case 3 -> "animated_128x128";
+            default -> null;
+        };
+        if (geometryKey == null) {
+            ViaBedrockUtilityFabric.LOGGER.warn("[Skin] Unknown animation type {} for {}", pending.type, playerUuid);
+            return;
+        }
+
+        // Look up geometry identifier from skinResourcePatch
+        String geometryIdentifier = null;
+        try {
+            final JsonObject patch = JsonParser.parseString(cachedSkin.getResourcePatch()).getAsJsonObject();
+            final JsonObject geometryObj = patch.getAsJsonObject("geometry");
+            if (geometryObj != null && geometryObj.has(geometryKey)) {
+                geometryIdentifier = geometryObj.get(geometryKey).getAsString();
+            }
+        } catch (Exception e) {
+            ViaBedrockUtilityFabric.LOGGER.error("[Skin] Failed to parse resourcePatch for animation: {}", e.getMessage());
+            return;
+        }
+
+        if (geometryIdentifier == null) {
+            ViaBedrockUtilityFabric.LOGGER.warn("[Skin] No geometry identifier for key '{}' in resourcePatch for {}", geometryKey, playerUuid);
+            return;
+        }
+
+        if (cachedSkin.getGeometryRaw() == null || cachedSkin.getGeometryRaw().isEmpty()) {
+            ViaBedrockUtilityFabric.LOGGER.warn("[Skin] No geometryData available for animation overlay, uuid={}", playerUuid);
+            return;
+        }
+
+        // Find the BedrockGeometryModel for this animation overlay
+        BedrockGeometryModel targetGeometry = null;
+        try {
+            final JsonObject geoObj = JsonParser.parseString(cachedSkin.getGeometryRaw()).getAsJsonObject();
+            final List<BedrockGeometryModel> geometries = BedrockGeometryModel.fromJson(geoObj);
+            for (BedrockGeometryModel geo : geometries) {
+                if (geo.getIdentifier().equals(geometryIdentifier)) {
+                    targetGeometry = geo;
+                    break;
+                }
+            }
+        } catch (Exception e) {
+            ViaBedrockUtilityFabric.LOGGER.error("[Skin] Failed to parse geometry for animation overlay: {}", e.getMessage());
+            return;
+        }
+
+        if (targetGeometry == null) {
+            ViaBedrockUtilityFabric.LOGGER.warn("[Skin] Geometry '{}' not found in geometryData for {}", geometryIdentifier, playerUuid);
+            return;
+        }
+
+        // Build the overlay model
+        final PlayerEntityModel overlayModel;
+        try {
+            overlayModel = (PlayerEntityModel) GeometryUtil.buildModel(targetGeometry, true, cachedSkin.isSlim(), geometryIdentifier);
+        } catch (Exception e) {
+            ViaBedrockUtilityFabric.LOGGER.error("[Skin] Failed to build overlay model '{}' for {}: {}", geometryIdentifier, playerUuid, e.getMessage());
+            return;
+        }
+
+        // Register the sprite sheet texture
+        final NativeImage textureImage = ImageUtil.toNativeImage(pending.getData(), pending.width, pending.height);
+        if (textureImage == null) {
+            ViaBedrockUtilityFabric.LOGGER.error("[Skin] Failed to create NativeImage for animation overlay, uuid={}", playerUuid);
+            return;
+        }
+
+        final Identifier textureId = Identifier.of(ViaBedrockUtilityFabric.MOD_ID, playerUuid.toString() + "/anim_" + pending.animIndex);
+        final MinecraftClient client = MinecraftClient.getInstance();
+        client.getTextureManager().registerTexture(textureId, new NativeImageBackedTexture(() -> textureId.toString() + textureImage.hashCode(), textureImage));
+
+        // Create and attach the overlay
+        final int totalFrames = pending.totalFrames;
+        final int frameHeight = pending.height / totalFrames;
+        final AnimatedSkinOverlay overlay = new AnimatedSkinOverlay(overlayModel, textureId, pending.type, totalFrames, pending.height, frameHeight);
+        customRenderer.addOverlay(overlay);
+
+        ViaBedrockUtilityFabric.LOGGER.info("[Skin] Animation overlay created: uuid={} type={} frames={} geometry='{}'",
+                playerUuid, pending.type, totalFrames, geometryIdentifier);
+    }
+
+    public void tickAnimationOverlays() {
+        for (EntityRenderer<?, ?> renderer : cachedPlayerRenderers.values()) {
+            if (renderer instanceof CustomPlayerRenderer customRenderer) {
+                customRenderer.tickOverlays();
+            }
+        }
+    }
+
+    @Getter
+    private static class PendingAnimation {
+        private final int animIndex;
+        private final int type;
+        private final int totalFrames;
+        private final int expression;
+        private final int width;
+        private final int height;
+        private final byte[][] data;
+
+        PendingAnimation(int animIndex, int type, int totalFrames, int expression, int width, int height, int chunkCount) {
+            this.animIndex = animIndex;
+            this.type = type;
+            this.totalFrames = totalFrames;
+            this.expression = expression;
+            this.width = width;
+            this.height = height;
+            this.data = new byte[chunkCount][];
+        }
+
+        public void setData(byte[] chunkData, int chunkPosition) {
+            this.data[chunkPosition] = chunkData;
+        }
+
+        public boolean isComplete() {
+            for (byte[] chunk : data) {
+                if (chunk == null) return false;
+            }
+            return true;
+        }
+
+        public byte[] getData() {
+            if (data.length == 1) return data[0];
+            int totalLength = 0;
+            for (byte[] chunk : data) totalLength += chunk.length;
+            byte[] result = new byte[totalLength];
+            int offset = 0;
+            for (byte[] chunk : data) {
+                System.arraycopy(chunk, 0, result, offset, chunk.length);
+                offset += chunk.length;
+            }
+            return result;
         }
     }
 }

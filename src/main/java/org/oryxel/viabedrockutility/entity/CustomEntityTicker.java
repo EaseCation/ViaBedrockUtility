@@ -235,7 +235,7 @@ public class CustomEntityTicker {
                 continue;
             }
 
-            final CustomEntityModel<CustomEntityRenderer.CustomEntityRenderState> cModel = (CustomEntityModel<CustomEntityRenderer.CustomEntityRenderState>) GeometryUtil.buildModel(geometry, false, false);
+            final CustomEntityModel<CustomEntityRenderer.CustomEntityRenderState> cModel = (CustomEntityModel<CustomEntityRenderer.CustomEntityRenderState>) GeometryUtil.buildModel(geometry, false, false, model.geometryValue());
 
             var visibleBounds = this.packManager.getModelDefinitions().getVisibleBoundsMap()
                     .getOrDefault(model.geometryValue(), org.oryxel.viabedrockutility.pack.definitions.VisibleBounds.DEFAULT);
