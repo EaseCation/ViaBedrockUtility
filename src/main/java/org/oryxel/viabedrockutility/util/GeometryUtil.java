@@ -114,7 +114,9 @@ public final class GeometryUtil {
         PartInfo root = stringToPart.get("root");
         if (root == null) {
             final Map<String, ModelPart> rootParts = Maps.newHashMap();
-            stringToPart.put("root", root = new PartInfo("", new ModelPart(List.of(), rootParts), rootParts));
+            final ModelPart rootPart = new ModelPart(List.of(), rootParts);
+            ((IModelPart)((Object)rootPart)).viaBedrockUtility$setVBUModel();
+            stringToPart.put("root", root = new PartInfo("", rootPart, rootParts));
         } else if (!player) {
             final Map<String, ModelPart> rootParts = Maps.newHashMap();
             root = new PartInfo("", new ModelPart(List.of(), rootParts), rootParts);

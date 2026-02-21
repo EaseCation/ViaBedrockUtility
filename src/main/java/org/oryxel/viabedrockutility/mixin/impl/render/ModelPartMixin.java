@@ -90,7 +90,12 @@ public abstract class ModelPartMixin implements IModelPart {
     @Inject(method = "getChild", at = @At("HEAD"), cancellable = true)
     private void getChild(String name, CallbackInfoReturnable<ModelPart> cir) {
         if (this.isVBUModel) {
-            cir.setReturnValue(this.children.getOrDefault(name, new ModelPart(List.of(), Map.of())));
+            ModelPart child = this.children.get(name);
+            if (child == null) {
+                child = new ModelPart(List.of(), Map.of());
+                ((IModelPart)(Object) child).viaBedrockUtility$setVBUModel();
+            }
+            cir.setReturnValue(child);
         }
     }
 
