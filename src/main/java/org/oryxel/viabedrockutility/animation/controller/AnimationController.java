@@ -86,15 +86,18 @@ public class AnimationController {
         private final List<Transition> transitions;
         private final List<String> onEntry;
         private final List<String> onExit;
-        private final float blendTransition;
+        private final BlendTransitionCurve blendTransitionCurve;
+        private final boolean blendViaShortestPath;
 
         public State(List<StateAnimation> animations, List<Transition> transitions,
-                     List<String> onEntry, List<String> onExit, float blendTransition) {
+                     List<String> onEntry, List<String> onExit,
+                     BlendTransitionCurve blendTransitionCurve, boolean blendViaShortestPath) {
             this.animations = animations;
             this.transitions = transitions;
             this.onEntry = onEntry;
             this.onExit = onExit;
-            this.blendTransition = blendTransition;
+            this.blendTransitionCurve = blendTransitionCurve;
+            this.blendViaShortestPath = blendViaShortestPath;
         }
 
         static State parse(JsonObject obj) {
@@ -132,12 +135,16 @@ public class AnimationController {
             final List<String> onEntry = parseStringArray(obj.getAsJsonArray("on_entry"));
             final List<String> onExit = parseStringArray(obj.getAsJsonArray("on_exit"));
 
-            // Parse blend_transition
-            final float blendTransition = obj.has("blend_transition")
-                    ? obj.get("blend_transition").getAsFloat()
-                    : 0.0f;
+            // Parse blend_transition (supports both float and keyframe object)
+            final BlendTransitionCurve blendTransitionCurve = BlendTransitionCurve.parse(
+                    obj.get("blend_transition"));
 
-            return new State(animations, transitions, onEntry, onExit, blendTransition);
+            // Parse blend_via_shortest_path
+            final boolean blendViaShortestPath = obj.has("blend_via_shortest_path")
+                    && obj.get("blend_via_shortest_path").getAsBoolean();
+
+            return new State(animations, transitions, onEntry, onExit,
+                    blendTransitionCurve, blendViaShortestPath);
         }
 
         private static List<String> parseStringArray(JsonArray array) {

@@ -1,5 +1,6 @@
 package org.oryxel.viabedrockutility.animation.animator;
 
+import lombok.Getter;
 import lombok.Setter;
 import net.minecraft.client.model.Model;
 import org.joml.Vector3f;
@@ -39,7 +40,7 @@ public class Animator {
     @Setter
     private Scope baseScope;
 
-    @Setter
+    @Getter @Setter
     private float blendWeight = 1.0f;
 
     public Animator(CustomEntityTicker ticker, AnimationDefinitions.AnimationData data) {

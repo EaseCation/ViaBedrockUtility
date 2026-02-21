@@ -17,6 +17,8 @@ public interface IModelPart {
     void viaBedrockUtility$setAngles(Vector3f vec3);
     void viaBedrockUtility$addOffset(Vector3f vec3);
     void viaBedrockUtility$addAngles(Vector3f vec3);
+    Vector3f viaBedrockUtility$getRotation();
+    Vector3f viaBedrockUtility$getOffset();
     void viaBedrockUtility$resetToDefaultPose();
     Map<String, ModelPart> viaBedrockUtility$getChildren();
     java.util.List<ModelPart.Cuboid> viaBedrockUtility$getCuboids();
