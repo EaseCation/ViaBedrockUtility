@@ -380,12 +380,6 @@ public class PayloadHandler {
     }
 
     public void handle(final SkinAnimationInfoPayload payload) {
-        if (payload.getType() == 1) {
-            // Face animation uses poly_mesh format which CubeConverter doesn't support — skip
-            ViaBedrockUtilityFabric.LOGGER.debug("[Skin] Skipping face animation (type=1) for {}", payload.getPlayerUuid());
-            return;
-        }
-
         ViaBedrockUtilityFabric.LOGGER.debug("[Skin] Received animation info: uuid={} index={} type={} frames={} {}x{} chunks={}",
                 payload.getPlayerUuid(), payload.getAnimIndex(), payload.getType(),
                 payload.getFrames(), payload.getWidth(), payload.getHeight(), payload.getChunkCount());
@@ -436,6 +430,7 @@ public class PayloadHandler {
         }
 
         final String geometryKey = switch (pending.type) {
+            case 1 -> "animated_face";
             case 2 -> "animated_32x32";
             case 3 -> "animated_128x128";
             default -> null;
@@ -512,7 +507,7 @@ public class PayloadHandler {
         // Create and attach the overlay
         final int totalFrames = pending.totalFrames;
         final int frameHeight = pending.height / totalFrames;
-        final AnimatedSkinOverlay overlay = new AnimatedSkinOverlay(overlayModel, textureId, pending.type, totalFrames, pending.height, frameHeight);
+        final AnimatedSkinOverlay overlay = new AnimatedSkinOverlay(overlayModel, textureId, pending.type, totalFrames, pending.expression, pending.height, frameHeight);
         customRenderer.addOverlay(overlay);
 
         ViaBedrockUtilityFabric.LOGGER.info("[Skin] Animation overlay created: uuid={} type={} frames={} geometry='{}'",

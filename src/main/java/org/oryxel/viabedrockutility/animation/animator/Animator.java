@@ -164,10 +164,8 @@ public class Animator {
     }
 
     public void stop(Model model, boolean forcefully) {
-        if (this.data.animation().getLoop().getValue().equals(false) || forcefully) {
-            ((IModelPart)((Object)model.getRootPart())).viaBedrockUtility$resetEverything();
-        }
-
+        // No need to resetEverything here — per-frame reset in CustomEntityRenderer
+        // handles bone state, and calling reset mid-loop would undo other animators' contributions.
         this.animationStartMS = System.currentTimeMillis();
 
         this.donePlaying = true;

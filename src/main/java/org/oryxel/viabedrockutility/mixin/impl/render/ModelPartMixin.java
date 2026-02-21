@@ -126,9 +126,7 @@ public abstract class ModelPartMixin implements IModelPart {
         //?} else {
         /*this.traverse().toList().forEach(part -> {
         *///?}
-            viaBedrockUtility$setOffset(this.offset);
-            viaBedrockUtility$setAngles(this.defaultRotation);
-            this.xScale = this.yScale = this.zScale = 1.0F;
+            ((IModelPart)((Object)part)).viaBedrockUtility$resetToDefaultPose();
         });
     }
 
@@ -140,6 +138,11 @@ public abstract class ModelPartMixin implements IModelPart {
     @Override
     public void viaBedrockUtility$setOffset(Vector3f vec3) {
         this.offset.set(vec3.x, -vec3.y, vec3.z);
+    }
+
+    @Override
+    public void viaBedrockUtility$addOffset(Vector3f vec3) {
+        this.offset.add(vec3.x, -vec3.y, vec3.z);
     }
 
     @Override
@@ -160,6 +163,18 @@ public abstract class ModelPartMixin implements IModelPart {
         }
 
         this.rotation.set(vec3.x, vec3.y, vec3.z);
+    }
+
+    @Override
+    public void viaBedrockUtility$addAngles(Vector3f vec3) {
+        this.rotation.add(vec3.x, vec3.y, vec3.z);
+    }
+
+    @Override
+    public void viaBedrockUtility$resetToDefaultPose() {
+        this.rotation.set(this.defaultRotation);
+        this.offset.set(0, 0, 0);
+        this.xScale = this.yScale = this.zScale = 1.0F;
     }
 
     // --- forEachChild depth guard (DISABLED — kept for debugging cyclic ModelPart trees) ---

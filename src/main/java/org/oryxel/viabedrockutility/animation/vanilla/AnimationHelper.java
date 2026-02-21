@@ -57,7 +57,7 @@ public class AnimationHelper {
                     interp = lv2.interpolation();
                 }
                 interp.apply(scope, tempVec, k, lvs, i, j, scale);
-                transformation.target().apply(part, tempVec);
+                transformation.target().apply(part, tempVec, scale);
             }
         }
     }

@@ -111,6 +111,9 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
             matrices.translate(0.0F, -1.501F, 0.0F);
 
             if (shouldAnimate) {
+                // Reset all bones to default pose before additive animation blending
+                resetBonesToDefaultPose(model.model());
+
                 this.animators.values().forEach(animator -> {
                     try {
                         animator.animate(model.model(), state);
@@ -187,6 +190,9 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
             matrices.translate(0.0F, -1.501F, 0.0F);
 
             if (shouldAnimate) {
+                // Reset all bones to default pose before additive animation blending
+                resetBonesToDefaultPose(model.model());
+
                 this.animators.values().forEach(animator -> {
                     try {
                         animator.animate(model.model(), state);
@@ -437,6 +443,20 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
         frameScope.set("q", queryBinding);
 
         return frameScope;
+    }
+
+    /**
+     * Resets all bones in a model to their default pose (bind pose).
+     * Must be called before additive animation blending each frame.
+     */
+    private void resetBonesToDefaultPose(net.minecraft.client.model.Model model) {
+        //? if >=1.21.6 {
+        model.getRootPart().traverse().forEach(part ->
+        //?} else {
+        /*model.getRootPart().traverse().toList().forEach(part ->
+        *///?}
+            ((IModelPart)((Object)part)).viaBedrockUtility$resetToDefaultPose()
+        );
     }
 
     /**

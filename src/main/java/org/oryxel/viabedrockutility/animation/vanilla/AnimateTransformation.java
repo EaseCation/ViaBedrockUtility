@@ -69,17 +69,22 @@ public record AnimateTransformation(Target target, VBUKeyFrame[] keyframes) {
     }
 
     public static class Targets {
-        public static final Target OFFSET = (part, vec3) -> ((IModelPart)((Object)part)).viaBedrockUtility$setOffset(vec3);
-        public static final Target ROTATE = (part, vec3) -> ((IModelPart)((Object)part)).viaBedrockUtility$setAngles(vec3);
-        public static final Target SCALE = (part, vec3) -> {
-            part.xScale = vec3.x;
-            part.yScale = vec3.y;
-            part.zScale = vec3.z;
+        public static final Target OFFSET = (part, vec3, weight) -> ((IModelPart)((Object)part)).viaBedrockUtility$addOffset(vec3);
+        public static final Target ROTATE = (part, vec3, weight) -> ((IModelPart)((Object)part)).viaBedrockUtility$addAngles(vec3);
+        public static final Target SCALE = (part, vec3, weight) -> {
+            // Additive scale relative to 1.0: final = 1.0 + Σ((anim_scale - 1.0) * weight)
+            // Interpolation already computed vec3 = interpolated_value * weight,
+            // so (interpolated_value - 1.0) * weight = vec3 - weight
+            if (weight > 0) {
+                part.xScale += vec3.x - weight;
+                part.yScale += vec3.y - weight;
+                part.zScale += vec3.z - weight;
+            }
         };
     }
 
     public interface Target {
-        void apply(ModelPart var1, Vector3f var2);
+        void apply(ModelPart part, Vector3f vec3, float weight);
     }
 
     public interface Interpolation {

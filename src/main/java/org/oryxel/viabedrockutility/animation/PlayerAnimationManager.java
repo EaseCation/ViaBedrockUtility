@@ -5,6 +5,7 @@ import net.minecraft.client.model.ModelPart;
 import net.minecraft.client.render.entity.state.PlayerEntityRenderState;
 import org.joml.Vector3f;
 import org.oryxel.viabedrockutility.animation.vanilla.AnimationHelper;
+import org.oryxel.viabedrockutility.mixin.interfaces.IModelPart;
 import org.oryxel.viabedrockutility.pack.definitions.AnimationDefinitions;
 import org.oryxel.viabedrockutility.payload.handler.CustomEntityPayloadHandler;
 import team.unnamed.mocha.runtime.Scope;
@@ -110,6 +111,12 @@ public class PlayerAnimationManager {
      * All other animations are purely additive via IModelPart.rotation.
      */
     public void animate(Model model, PlayerEntityRenderState state) {
+        // Reset affected bones' VBU rotation/offset to default before additive blending
+        for (String boneName : affectedBones) {
+            AnimationHelper.getPartByName(model.getParts(), boneName)
+                .ifPresent(part -> ((IModelPart)((Object)part)).viaBedrockUtility$resetToDefaultPose());
+        }
+
         final Scope scope = buildScope(state);
         final long elapsed = System.currentTimeMillis() - startTimeMS;
         for (Map.Entry<String, AnimationDefinitions.AnimationData> entry : animations.entrySet()) {
