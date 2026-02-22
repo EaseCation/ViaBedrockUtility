@@ -2,6 +2,13 @@ package org.oryxel.viabedrockutility.entity;
 
 import lombok.Getter;
 import lombok.Setter;
+import net.easecation.bedrockmotion.controller.AnimationController;
+import net.easecation.bedrockmotion.controller.AnimationControllerInstance;
+import net.easecation.bedrockmotion.model.AnimationEventListener;
+import net.easecation.bedrockmotion.mocha.MoLangEngine;
+import net.easecation.bedrockmotion.pack.PackManager;
+import net.easecation.bedrockmotion.pack.definitions.EntityDefinitions;
+import net.easecation.bedrockmotion.render.RenderControllerEvaluator;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.entity.EntityRendererFactory;
 import net.minecraft.client.render.entity.equipment.EquipmentModelLoader;
@@ -10,15 +17,10 @@ import org.cube.converter.data.bedrock.BedrockEntityData;
 import org.cube.converter.data.bedrock.controller.BedrockRenderController;
 import org.cube.converter.model.impl.bedrock.BedrockGeometryModel;
 import org.oryxel.viabedrockutility.ViaBedrockUtility;
-import org.oryxel.viabedrockutility.animation.controller.AnimationController;
-import org.oryxel.viabedrockutility.animation.controller.AnimationControllerInstance;
 import org.oryxel.viabedrockutility.enums.bedrock.ActorFlags;
 import org.oryxel.viabedrockutility.fabric.ViaBedrockUtilityFabric;
 import org.oryxel.viabedrockutility.mappings.BedrockMappings;
 import org.oryxel.viabedrockutility.material.data.Material;
-import org.oryxel.viabedrockutility.mocha.MoLangEngine;
-import org.oryxel.viabedrockutility.pack.PackManager;
-import org.oryxel.viabedrockutility.pack.definitions.EntityDefinitions;
 import org.oryxel.viabedrockutility.payload.handler.CustomEntityPayloadHandler;
 import org.oryxel.viabedrockutility.renderer.CustomEntityRenderer;
 import org.oryxel.viabedrockutility.renderer.model.CustomEntityModel;
@@ -35,7 +37,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 import static org.oryxel.viabedrockutility.payload.handler.CustomEntityPayloadHandler.*;
 
-public class CustomEntityTicker {
+public class CustomEntityTicker implements AnimationEventListener {
     @Getter
     private final Scope entityScope = BASE_SCOPE.copy();
 
@@ -44,6 +46,8 @@ public class CustomEntityTicker {
 
     private final CustomEntityPayloadHandler payloadHandler = ViaBedrockUtility.getInstance().getPayloadHandler();
     private final PackManager packManager = ViaBedrockUtility.getInstance().getPackManager();
+    private final org.oryxel.viabedrockutility.pack.definitions.MaterialDefinitions vbuMaterialDefinitions =
+            new org.oryxel.viabedrockutility.pack.definitions.MaterialDefinitions(this.packManager);
 
     private final EntityDefinitions.EntityDefinition entityDefinition;
     private final Map<String, String> inverseGeometryMap = new HashMap<>();
@@ -51,7 +55,7 @@ public class CustomEntityTicker {
     private final Map<String, String> inverseMaterialMap = new HashMap<>();
 
     private final Set<String> availableModels = new HashSet<>();
-    private final List<EvaluatedModel> models = new ArrayList<>();
+    private final List<RenderControllerEvaluator.EvaluatedModel> models = new ArrayList<>();
 
     @Getter
     private final CustomEntityRenderer<?> renderer;
@@ -150,7 +154,10 @@ public class CustomEntityTicker {
         this.entityScope.readOnly(true);
     }
 
-    public void handleAnimationTimeline(List<String> expressions) {
+    // --- AnimationEventListener implementation ---
+
+    @Override
+    public void onTimelineEvent(List<String> expressions) {
         try {
             for (String expression : expressions) {
                 MoLangEngine.eval(this.entityScope, expression);
@@ -161,6 +168,13 @@ public class CustomEntityTicker {
 
         this.update();
     }
+
+    @Override
+    public Scope getEntityScope() {
+        return this.entityScope;
+    }
+
+    // --- End AnimationEventListener ---
 
     /**
      * Executes pre_animation scripts once per frame with the given scope containing query bindings.
@@ -221,7 +235,7 @@ public class CustomEntityTicker {
         ViaBedrockUtilityFabric.LOGGER.debug("[Entity] update(): render controller changed, evaluatedModels={}", this.models.size());
         final Set<String> old = new HashSet<>(this.availableModels);
         this.availableModels.clear();
-        for (EvaluatedModel model : this.models) {
+        for (RenderControllerEvaluator.EvaluatedModel model : this.models) {
             final Identifier texture = Identifier.of(model.textureValue().toLowerCase(Locale.ROOT));
 
             BedrockGeometryModel geometry = this.packManager.getModelDefinitions().getEntityModels().get(model.geometryValue());
@@ -238,7 +252,7 @@ public class CustomEntityTicker {
             final CustomEntityModel<CustomEntityRenderer.CustomEntityRenderState> cModel = (CustomEntityModel<CustomEntityRenderer.CustomEntityRenderState>) GeometryUtil.buildModel(geometry, false, false, model.geometryValue());
 
             var visibleBounds = this.packManager.getModelDefinitions().getVisibleBoundsMap()
-                    .getOrDefault(model.geometryValue(), org.oryxel.viabedrockutility.pack.definitions.VisibleBounds.DEFAULT);
+                    .getOrDefault(model.geometryValue(), net.easecation.bedrockmotion.pack.definitions.VisibleBounds.DEFAULT);
             this.renderer.getModels().add(new CustomEntityRenderer.Model(model.key(), model.geometryValue(), cModel, texture, evalMaterial(executionScope, model.controller()), model.controller(), visibleBounds));
             this.availableModels.add(model.key());
         }
@@ -293,44 +307,13 @@ public class CustomEntityTicker {
     }
 
     private boolean evaluateRenderControllerChange(final Scope executionScope) {
-        final List<EvaluatedModel> newModels = new ArrayList<>();
-        for (final BedrockEntityData.RenderController entityRenderController : this.entityDefinition.entityData().getControllers()) {
-            final BedrockRenderController renderController = this.packManager.getRenderControllerDefinitions().getRenderControllers().get(entityRenderController.identifier());
-            if (renderController == null) {
-                continue;
-            }
-            if (!entityRenderController.condition().isBlank()) {
-                try {
-                    final Value conditionResult = MoLangEngine.eval(executionScope, entityRenderController.condition());
-                    if (!conditionResult.getAsBoolean()) {
-                        continue;
-                    }
-                } catch (Throwable e) {
-                    ViaBedrockUtilityFabric.LOGGER.warn("Failed to evaluate render controller condition", e);
-                    continue;
-                }
-            }
-
-            try {
-                final Scope renderControllerGeometryScope = executionScope.copy();
-                renderControllerGeometryScope.set("array", this.getArrayBinding(executionScope, renderController.geometries()));
-                final Scope renderControllerTextureScope = executionScope.copy();
-                renderControllerTextureScope.set("array", this.getArrayBinding(executionScope, renderController.textures()));
-
-                final String geometryValue = MoLangEngine.eval(renderControllerGeometryScope, renderController.geometryExpression()).getAsString();
-                final String geometryName = this.inverseGeometryMap.get(geometryValue);
-                for (String textureExpression : renderController.textureExpressions()) {
-                    final String textureValue = MoLangEngine.eval(renderControllerTextureScope, textureExpression).getAsString();
-                    final String textureName = this.inverseTextureMap.get(textureValue);
-                    if (geometryName != null && textureName != null) {
-                        newModels.add(new EvaluatedModel(geometryName + "_" + textureName, renderController, geometryValue, textureValue));
-                    }
-                }
-            } catch (Throwable e) {
-                this.models.clear();
-                return true;
-            }
-        }
+        final List<RenderControllerEvaluator.EvaluatedModel> newModels = RenderControllerEvaluator.evaluate(
+                this.entityDefinition.entityData(),
+                executionScope,
+                this.packManager.getRenderControllerDefinitions(),
+                this.inverseGeometryMap,
+                this.inverseTextureMap
+        );
 
         if (!newModels.isEmpty() && !this.models.equals(newModels)) {
             this.availableModels.clear();
@@ -367,7 +350,7 @@ public class CustomEntityTicker {
                 return DEFAULT_MATERIAL;
             }
 
-            return this.packManager.getMaterialDefinitions().getMaterial(materialName);
+            return this.vbuMaterialDefinitions.getMaterial(materialName);
         } catch (IOException ignored) {}
 
         return DEFAULT_MATERIAL;
@@ -386,9 +369,6 @@ public class CustomEntityTicker {
         }
         arrayBinding.block();
         return arrayBinding;
-    }
-
-    public record EvaluatedModel(String key, BedrockRenderController controller, String geometryValue, String textureValue) {
     }
 
     public Set<ActorFlags> entityFlags() {

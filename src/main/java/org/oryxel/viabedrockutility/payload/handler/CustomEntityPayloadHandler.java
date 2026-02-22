@@ -5,7 +5,7 @@ import org.oryxel.viabedrockutility.entity.CustomEntityTicker;
 import org.oryxel.viabedrockutility.fabric.ViaBedrockUtilityFabric;
 import org.oryxel.viabedrockutility.material.VanillaMaterials;
 import org.oryxel.viabedrockutility.material.data.Material;
-import org.oryxel.viabedrockutility.pack.definitions.EntityDefinitions;
+import net.easecation.bedrockmotion.pack.definitions.EntityDefinitions;
 import org.oryxel.viabedrockutility.payload.PayloadHandler;
 import org.oryxel.viabedrockutility.payload.impl.entity.ModelRequestPayload;
 import team.unnamed.mocha.runtime.Scope;

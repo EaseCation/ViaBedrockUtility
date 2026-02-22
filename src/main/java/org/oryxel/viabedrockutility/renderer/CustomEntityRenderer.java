@@ -2,6 +2,11 @@ package org.oryxel.viabedrockutility.renderer;
 
 import lombok.Getter;
 import lombok.Setter;
+import net.easecation.bedrockmotion.animator.Animator;
+import net.easecation.bedrockmotion.controller.AnimationControllerInstance;
+import net.easecation.bedrockmotion.mocha.LayeredScope;
+import net.easecation.bedrockmotion.mocha.MoLangEngine;
+import net.easecation.bedrockmotion.pack.definitions.AnimationDefinitions;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.model.ModelPart;
 import net.minecraft.client.render.*;
@@ -23,16 +28,12 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.RotationAxis;
 import net.minecraft.util.math.Vec3d;
 import org.cube.converter.data.bedrock.controller.BedrockRenderController;
-import org.oryxel.viabedrockutility.animation.animator.Animator;
-import org.oryxel.viabedrockutility.animation.controller.AnimationControllerInstance;
+import org.oryxel.viabedrockutility.adapter.McBoneModel;
 import org.oryxel.viabedrockutility.config.LodConfig;
 import org.oryxel.viabedrockutility.entity.CustomEntityTicker;
 import org.oryxel.viabedrockutility.fabric.ViaBedrockUtilityFabric;
 import org.oryxel.viabedrockutility.material.data.Material;
 import org.oryxel.viabedrockutility.mixin.interfaces.IModelPart;
-import org.oryxel.viabedrockutility.mocha.LayeredScope;
-import org.oryxel.viabedrockutility.mocha.MoLangEngine;
-import org.oryxel.viabedrockutility.pack.definitions.AnimationDefinitions;
 import org.oryxel.viabedrockutility.renderer.model.CustomEntityModel;
 import team.unnamed.mocha.parser.ast.Expression;
 import team.unnamed.mocha.runtime.Scope;
@@ -111,12 +112,14 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
             matrices.translate(0.0F, -1.501F, 0.0F);
 
             if (shouldAnimate) {
+                final McBoneModel boneModel = new McBoneModel(model.model());
+
                 // Reset all bones to default pose before additive animation blending
-                resetBonesToDefaultPose(model.model());
+                boneModel.resetAllBones();
 
                 this.animators.values().forEach(animator -> {
                     try {
-                        animator.animate(model.model(), state);
+                        animator.animate(boneModel);
                     } catch (IOException e) {
                         throw new RuntimeException(e);
                     }
@@ -124,7 +127,7 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
 
                 // Apply animation controller animations
                 for (AnimationControllerInstance ci : this.ticker.getControllerInstances()) {
-                    ci.animate(model.model(), state);
+                    ci.animate(boneModel);
                 }
 
                 // Apply part_visibility
@@ -190,19 +193,21 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
             matrices.translate(0.0F, -1.501F, 0.0F);
 
             if (shouldAnimate) {
+                final McBoneModel boneModel = new McBoneModel(model.model());
+
                 // Reset all bones to default pose before additive animation blending
-                resetBonesToDefaultPose(model.model());
+                boneModel.resetAllBones();
 
                 this.animators.values().forEach(animator -> {
                     try {
-                        animator.animate(model.model(), state);
+                        animator.animate(boneModel);
                     } catch (IOException e) {
                         throw new RuntimeException(e);
                     }
                 });
 
                 for (AnimationControllerInstance ci : this.ticker.getControllerInstances()) {
-                    ci.animate(model.model(), state);
+                    ci.animate(boneModel);
                 }
 
                 if (model.controller() != null && !model.controller().partVisibility().isEmpty()) {
@@ -446,20 +451,6 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
     }
 
     /**
-     * Resets all bones in a model to their default pose (bind pose).
-     * Must be called before additive animation blending each frame.
-     */
-    private void resetBonesToDefaultPose(net.minecraft.client.model.Model model) {
-        //? if >=1.21.6 {
-        model.getRootPart().traverse().forEach(part ->
-        //?} else {
-        /*model.getRootPart().traverse().toList().forEach(part ->
-        *///?}
-            ((IModelPart)((Object)part)).viaBedrockUtility$resetToDefaultPose()
-        );
-    }
-
-    /**
      * Evaluates animation blend weight conditions using pre-parsed expressions.
      */
     private void evaluateAnimationConditions(final Scope frameScope) {
@@ -484,7 +475,7 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
     }
 
     public record Model(String key, String geometry, CustomEntityModel<CustomEntityRenderState> model, Identifier texture, Material material, BedrockRenderController controller,
-                        org.oryxel.viabedrockutility.pack.definitions.VisibleBounds visibleBounds) {
+                        net.easecation.bedrockmotion.pack.definitions.VisibleBounds visibleBounds) {
     }
 
     @Getter
@@ -612,7 +603,7 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
     }
 
     public void reset() {
-        this.animators.values().forEach(animator -> this.models.forEach(m -> animator.stop(m.model(), true)));
+        this.animators.values().forEach(Animator::stop);
         this.animators.clear();
     }
 

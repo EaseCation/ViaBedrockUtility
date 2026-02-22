@@ -1,7 +1,7 @@
 import com.google.gson.JsonParser;
-import org.oryxel.viabedrockutility.animation.Animation;
-import org.oryxel.viabedrockutility.animation.vanilla.AnimateBuilder;
-import org.oryxel.viabedrockutility.animation.vanilla.VBUAnimation;
+import net.easecation.bedrockmotion.animation.Animation;
+import net.easecation.bedrockmotion.animation.vanilla.AnimateBuilder;
+import net.easecation.bedrockmotion.animation.vanilla.VBUAnimation;
 
 import java.io.File;
 import java.io.IOException;

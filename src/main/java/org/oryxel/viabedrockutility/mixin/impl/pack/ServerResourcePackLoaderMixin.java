@@ -5,8 +5,9 @@ import net.minecraft.client.resource.server.ServerResourcePackLoader;
 import net.minecraft.resource.ResourcePackProfile;
 import org.oryxel.viabedrockutility.ViaBedrockUtility;
 import org.oryxel.viabedrockutility.fabric.ViaBedrockUtilityFabric;
-import org.oryxel.viabedrockutility.pack.PackManager;
-import org.oryxel.viabedrockutility.pack.content.Content;
+import org.oryxel.viabedrockutility.pack.processor.TextureProcessor;
+import net.easecation.bedrockmotion.pack.PackManager;
+import net.easecation.bedrockmotion.pack.content.Content;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -42,6 +43,7 @@ public class ServerResourcePackLoaderMixin {
         });
 
         ViaBedrockUtilityFabric.LOGGER.info("[ResourcePack] Loaded {} bedrock pack(s) total, initializing PackManager", contents.size());
+        TextureProcessor.process(contents);
         ViaBedrockUtility.getInstance().setPackManager(new PackManager(contents));
     }
 }

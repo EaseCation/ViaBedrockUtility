@@ -1,12 +1,13 @@
 package org.oryxel.viabedrockutility.animation;
 
+import net.easecation.bedrockmotion.animation.vanilla.AnimationHelper;
+import net.easecation.bedrockmotion.pack.definitions.AnimationDefinitions;
 import net.minecraft.client.model.Model;
 import net.minecraft.client.model.ModelPart;
 import net.minecraft.client.render.entity.state.PlayerEntityRenderState;
 import org.joml.Vector3f;
-import org.oryxel.viabedrockutility.animation.vanilla.AnimationHelper;
+import org.oryxel.viabedrockutility.adapter.McBoneModel;
 import org.oryxel.viabedrockutility.mixin.interfaces.IModelPart;
-import org.oryxel.viabedrockutility.pack.definitions.AnimationDefinitions;
 import org.oryxel.viabedrockutility.payload.handler.CustomEntityPayloadHandler;
 import team.unnamed.mocha.runtime.Scope;
 import team.unnamed.mocha.runtime.value.MutableObjectBinding;
@@ -110,20 +111,24 @@ public class PlayerAnimationManager {
      * For known vanilla-replacing animations, clears only the specific axes that vanilla sets.
      * All other animations are purely additive via IModelPart.rotation.
      */
+    @SuppressWarnings("unchecked")
     public void animate(Model model, PlayerEntityRenderState state) {
+        List<ModelPart> parts = (List<ModelPart>) model.getParts();
+
         // Reset affected bones' VBU rotation/offset to default before additive blending
         for (String boneName : affectedBones) {
-            AnimationHelper.getPartByName(model.getParts(), boneName)
+            getPartByName(parts, boneName)
                 .ifPresent(part -> ((IModelPart)((Object)part)).viaBedrockUtility$resetToDefaultPose());
         }
 
+        final McBoneModel boneModel = new McBoneModel(model);
         final Scope scope = buildScope(state);
         final long elapsed = System.currentTimeMillis() - startTimeMS;
         for (Map.Entry<String, AnimationDefinitions.AnimationData> entry : animations.entrySet()) {
             final List<BoneClear> clears = VANILLA_CLEAR_MAP.get(entry.getKey());
             if (clears != null) {
                 for (BoneClear bc : clears) {
-                    Optional<ModelPart> opt = AnimationHelper.getPartByName(model.getParts(), bc.boneName());
+                    Optional<ModelPart> opt = getPartByName(parts, bc.boneName());
                     opt.ifPresent(part -> {
                         if (bc.pitch()) part.pitch = 0;
                         if (bc.yaw()) part.yaw = 0;
@@ -131,7 +136,7 @@ public class PlayerAnimationManager {
                     });
                 }
             }
-            AnimationHelper.animate(scope, model, entry.getValue().compiled(), elapsed, 1.0f, tempVec, null);
+            AnimationHelper.animate(scope, boneModel, entry.getValue().compiled(), elapsed, 1.0f, tempVec, null);
         }
     }
 
@@ -150,5 +155,17 @@ public class PlayerAnimationManager {
         scope.set("q", query);
 
         return scope;
+    }
+
+    /**
+     * Finds a ModelPart by name from a flat list of parts (MC-specific helper).
+     */
+    private static Optional<ModelPart> getPartByName(List<ModelPart> parts, String name) {
+        for (ModelPart part : parts) {
+            if (((IModelPart)((Object)part)).viaBedrockUtility$getName().equalsIgnoreCase(name) && part.isEmpty()) {
+                return Optional.of(part);
+            }
+        }
+        return Optional.empty();
     }
 }

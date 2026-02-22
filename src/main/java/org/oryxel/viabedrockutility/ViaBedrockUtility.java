@@ -10,7 +10,7 @@ import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.minecraft.server.command.CommandManager;
 import org.oryxel.viabedrockutility.mappings.BedrockMappings;
 import org.oryxel.viabedrockutility.material.VanillaMaterials;
-import org.oryxel.viabedrockutility.pack.PackManager;
+import net.easecation.bedrockmotion.pack.PackManager;
 import org.oryxel.viabedrockutility.payload.BasePayload;
 import org.oryxel.viabedrockutility.payload.handler.CustomEntityPayloadHandler;
 

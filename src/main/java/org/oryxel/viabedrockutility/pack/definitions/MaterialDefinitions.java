@@ -1,16 +1,20 @@
 package org.oryxel.viabedrockutility.pack.definitions;
 
 import com.google.gson.JsonParser;
+import net.easecation.bedrockmotion.pack.PackManager;
+import net.easecation.bedrockmotion.pack.content.Content;
 import org.oryxel.viabedrockutility.fabric.ViaBedrockUtilityFabric;
 import org.oryxel.viabedrockutility.material.VanillaMaterials;
 import org.oryxel.viabedrockutility.material.data.Material;
-import org.oryxel.viabedrockutility.pack.PackManager;
-import org.oryxel.viabedrockutility.pack.content.Content;
 
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * VBU-specific MaterialDefinitions that resolves material names to MC Material rendering objects.
+ * This is separate from BedrockMotion's simplified MaterialDefinitions.
+ */
 public class MaterialDefinitions {
     private final Map<String, Material> NAME_TO_MATERIAL = new HashMap<>();
 

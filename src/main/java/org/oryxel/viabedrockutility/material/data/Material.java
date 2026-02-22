@@ -17,7 +17,7 @@ import net.minecraft.util.Util;
 import java.util.*;
 import java.util.function.Function;
 
-import static org.oryxel.viabedrockutility.util.JsonUtil.*;
+import static net.easecation.bedrockmotion.util.JsonUtil.*;
 
 // https://wiki.bedrock.dev/visuals/materials
 public record Material(String identifier, String baseIdentifier, MaterialInfo info) {

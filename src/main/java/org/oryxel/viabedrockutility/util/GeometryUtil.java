@@ -32,6 +32,34 @@ public final class GeometryUtil {
         final float uvWidth = geometry.getTextureSize().getX();
         final float uvHeight = geometry.getTextureSize().getY();
 
+        // Pre-compute which bones are leg-related (including all descendants of leg bones).
+        // Child bones of legs must use the same Y coordinate system as their parent leg bone;
+        // otherwise the Y-inversion transform (-Y + 24.016) causes severe height offset.
+        final Set<String> legRelatedBones = new HashSet<>();
+        if (player) {
+            final Map<String, String> boneParentMap = new LinkedHashMap<>();
+            for (final Parent bone : geometry.getParents()) {
+                String bn = bone.getName().toLowerCase(Locale.ROOT);
+                String pn = bone.getParent() != null ? bone.getParent().toLowerCase(Locale.ROOT) : "";
+                boneParentMap.put(bn, pn);
+            }
+            for (String bn : boneParentMap.keySet()) {
+                if (LEG_RELATED.contains(bn)) {
+                    legRelatedBones.add(bn);
+                }
+            }
+            boolean changed = true;
+            while (changed) {
+                changed = false;
+                for (Map.Entry<String, String> entry : boneParentMap.entrySet()) {
+                    if (!legRelatedBones.contains(entry.getKey()) && legRelatedBones.contains(entry.getValue())) {
+                        legRelatedBones.add(entry.getKey());
+                        changed = true;
+                    }
+                }
+            }
+        }
+
         final Map<String, PartInfo> stringToPart = new HashMap<>();
         for (final Parent bone : geometry.getParents()) {
             final Map<String, ModelPart> children = Maps.newHashMap();
@@ -47,7 +75,7 @@ public final class GeometryUtil {
             ((IModelPart)((Object)part)).viaBedrockUtility$setNeededOffset(neededOffset);
             ((IModelPart)((Object)part)).viaBedrockUtility$setAngles(new Vector3f(bone.getRotation().getX() , bone.getRotation().getY(), bone.getRotation().getZ()));
 
-            boolean isLeg = player && LEG_RELATED.contains(bone.getName().toLowerCase(Locale.ROOT));
+            boolean isLeg = player && legRelatedBones.contains(bone.getName().toLowerCase(Locale.ROOT));
             if (isLeg) {
                 part.setOrigin(0, bone.getPivot().getY(), 0);
                 part.setDefaultTransform(part.getTransform());

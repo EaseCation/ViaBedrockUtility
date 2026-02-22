@@ -5,7 +5,7 @@ import net.minecraft.client.texture.NativeImage;
 import net.minecraft.client.texture.NativeImageBackedTexture;
 import net.minecraft.util.Identifier;
 import org.oryxel.viabedrockutility.fabric.ViaBedrockUtilityFabric;
-import org.oryxel.viabedrockutility.pack.content.Content;
+import net.easecation.bedrockmotion.pack.content.Content;
 
 import java.io.IOException;
 import java.util.List;
