@@ -36,12 +36,14 @@ public final class GeometryUtil {
         // Child bones of legs must use the same Y coordinate system as their parent leg bone;
         // otherwise the Y-inversion transform (-Y + 24.016) causes severe height offset.
         final Set<String> legRelatedBones = new HashSet<>();
+        final Map<String, String> boneParentMap = new LinkedHashMap<>();
+        final Map<String, Float> bonePivotY = new HashMap<>();
         if (player) {
-            final Map<String, String> boneParentMap = new LinkedHashMap<>();
             for (final Parent bone : geometry.getParents()) {
                 String bn = bone.getName().toLowerCase(Locale.ROOT);
                 String pn = bone.getParent() != null ? bone.getParent().toLowerCase(Locale.ROOT) : "";
                 boneParentMap.put(bn, pn);
+                bonePivotY.put(bn, bone.getPivot().getY());
             }
             for (String bn : boneParentMap.keySet()) {
                 if (LEG_RELATED.contains(bn)) {
@@ -77,7 +79,13 @@ public final class GeometryUtil {
 
             boolean isLeg = player && legRelatedBones.contains(bone.getName().toLowerCase(Locale.ROOT));
             if (isLeg) {
-                part.setOrigin(0, bone.getPivot().getY(), 0);
+                float pivotY = bone.getPivot().getY();
+                // Vanilla applyTransform translates to origin but never translates back,
+                // so child origins accumulate with parents. Use relative Y to compensate:
+                // accumulated origin Y of any bone = its absolute Bedrock pivot Y.
+                String parentLower = boneParentMap.getOrDefault(bone.getName().toLowerCase(Locale.ROOT), "");
+                float parentPivotY = bonePivotY.getOrDefault(parentLower, 0f);
+                part.setOrigin(0, pivotY - parentPivotY, 0);
                 part.setDefaultTransform(part.getTransform());
             } else {
                 ((IModelPart)((Object)part)).viaBedrockUtility$setPivot(new Vector3f(bone.getPivot().getX(), -bone.getPivot().getY() + 24.016F, bone.getPivot().getZ()));

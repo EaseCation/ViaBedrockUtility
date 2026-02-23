@@ -48,6 +48,9 @@ public abstract class ModelPartMixin implements IModelPart {
     @Unique private boolean neededOffset;
 
     @Unique
+    private final Quaternionf vbu$tempQuaternion = new Quaternionf();
+
+    @Unique
     private Vector3f pivot = new Vector3f();
 
     @Unique
@@ -68,7 +71,7 @@ public abstract class ModelPartMixin implements IModelPart {
         matrices.translate(this.offset.x / 16.0F, this.offset.y / 16.0F, this.offset.z / 16.0F);
 
         matrices.translate(this.pivot.x / 16.0F, this.pivot.y / 16.0F, this.pivot.z / 16.0F);
-        matrices.multiply((new Quaternionf()).rotationZYX(this.rotation.z * MathUtil.DEGREES_TO_RADIANS, this.rotation.y * MathUtil.DEGREES_TO_RADIANS, this.rotation.x * MathUtil.DEGREES_TO_RADIANS));
+        matrices.multiply(this.vbu$tempQuaternion.rotationZYX(this.rotation.z * MathUtil.DEGREES_TO_RADIANS, this.rotation.y * MathUtil.DEGREES_TO_RADIANS, this.rotation.x * MathUtil.DEGREES_TO_RADIANS));
         matrices.translate(-this.pivot.x / 16.0F, -this.pivot.y / 16.0F, -this.pivot.z / 16.0F);
 
         matrices.translate(-this.offset.x / 16.0F, -this.offset.y / 16.0F, -this.offset.z / 16.0F);

@@ -41,13 +41,19 @@ import team.unnamed.mocha.runtime.value.MutableObjectBinding;
 import team.unnamed.mocha.runtime.value.Value;
 
 import java.io.IOException;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Getter
 public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, CustomEntityRenderer.CustomEntityRenderState> {
+    private static final Value VAL_TRUE = Value.of(1.0);
+    private static final Value VAL_FALSE = Value.of(0.0);
+
     private final Map<String, Animator> animators = new ConcurrentHashMap<>();
+    private final Map<CustomEntityModel<?>, McBoneModel> boneModelCache = new IdentityHashMap<>();
+    private final LayeredScope reusableFrameScope = new LayeredScope(Scope.create());
 
     private final CustomEntityTicker ticker;
     private final List<Model> models;
@@ -112,7 +118,7 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
             matrices.translate(0.0F, -1.501F, 0.0F);
 
             if (shouldAnimate) {
-                final McBoneModel boneModel = new McBoneModel(model.model());
+                final McBoneModel boneModel = boneModelCache.computeIfAbsent(model.model(), McBoneModel::new);
 
                 // Reset all bones to default pose before additive animation blending
                 boneModel.resetAllBones();
@@ -193,7 +199,7 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
             matrices.translate(0.0F, -1.501F, 0.0F);
 
             if (shouldAnimate) {
-                final McBoneModel boneModel = new McBoneModel(model.model());
+                final McBoneModel boneModel = boneModelCache.computeIfAbsent(model.model(), McBoneModel::new);
 
                 // Reset all bones to default pose before additive animation blending
                 boneModel.resetAllBones();
@@ -405,7 +411,7 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
      * Uses LayeredScope on top of entityScope to avoid expensive deep copy.
      */
     private Scope buildFrameScope(CustomEntityRenderState state) {
-        final LayeredScope frameScope = new LayeredScope(this.ticker.getEntityScope());
+        reusableFrameScope.reset(this.ticker.getEntityScope());
 
         final MutableObjectBinding queryBinding = new MutableObjectBinding();
 
@@ -415,8 +421,8 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
         // Per-frame movement and state queries
         queryBinding.set("modified_distance_moved", Value.of(state.getDistanceTraveled()));
         queryBinding.set("modified_move_speed", Value.of(state.getGroundSpeed()));
-        queryBinding.set("is_on_ground", Value.of(state.isEntityOnGround()));
-        queryBinding.set("is_alive", Value.of(state.isEntityAlive()));
+        queryBinding.set("is_on_ground", state.isEntityOnGround() ? VAL_TRUE : VAL_FALSE);
+        queryBinding.set("is_alive", state.isEntityAlive() ? VAL_TRUE : VAL_FALSE);
         queryBinding.set("life_time", Value.of(state.getEntityLifeTime()));
         queryBinding.set("ground_speed", Value.of(state.getGroundSpeed()));
         queryBinding.set("vertical_speed", Value.of(state.getVerticalSpeed()));
@@ -444,10 +450,10 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
             return 0.0;
         });
 
-        frameScope.set("query", queryBinding);
-        frameScope.set("q", queryBinding);
+        reusableFrameScope.set("query", queryBinding);
+        reusableFrameScope.set("q", queryBinding);
 
-        return frameScope;
+        return reusableFrameScope;
     }
 
     /**
