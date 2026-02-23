@@ -112,7 +112,7 @@ dependencies {
 		exclude group: 'com.google.code.gson', module: 'gson'
 	}
 
-	modImplementation 'nakern.be_camera:bedrockcameralib:1.1.0'
+	modImplementation 'nakern.be_camera:bedrockcameralib:1.2.0'
 
 	lib 'org.projectlombok:lombok:1.18.36'
 	annotationProcessor 'org.projectlombok:lombok:1.18.36'

@@ -27,6 +27,9 @@ public class CameraPayloadHandler {
 
     private void handleInstruction(CameraInstructionPayload p) {
         if (p.isHasSet()) {
+            // Resolve preset with parent inheritance
+            final CameraPresetManager.Preset resolvedPreset = CameraPresetManager.INSTANCE.resolvePreset(p.getPresetRuntimeId());
+
             // Resolve position: prefer explicit position, fall back to preset
             Vec3d position = null;
             Vec2f rotation = null;
@@ -34,19 +37,14 @@ public class CameraPayloadHandler {
 
             if (p.isHasPos()) {
                 position = new Vec3d(p.getPosX(), p.getPosY(), p.getPosZ());
-            } else {
-                // Try to get position from preset
-                final CameraPresetManager.Preset preset = CameraPresetManager.INSTANCE.getPreset(p.getPresetRuntimeId());
-                if (preset != null && preset.getPosX() != null && preset.getPosY() != null && preset.getPosZ() != null) {
-                    position = new Vec3d(preset.getPosX(), preset.getPosY(), preset.getPosZ());
-                }
-                if (preset != null && preset.getRotX() != null && preset.getRotY() != null) {
-                    rotation = new Vec2f(preset.getRotX(), preset.getRotY());
-                }
+            } else if (resolvedPreset != null && resolvedPreset.getPosX() != null && resolvedPreset.getPosY() != null && resolvedPreset.getPosZ() != null) {
+                position = new Vec3d(resolvedPreset.getPosX(), resolvedPreset.getPosY(), resolvedPreset.getPosZ());
             }
 
             if (p.isHasRot()) {
                 rotation = new Vec2f(p.getRotX(), p.getRotY());
+            } else if (resolvedPreset != null && resolvedPreset.getRotX() != null && resolvedPreset.getRotY() != null) {
+                rotation = new Vec2f(resolvedPreset.getRotX(), resolvedPreset.getRotY());
             }
 
             if (p.isHasFacing()) {
@@ -54,21 +52,33 @@ public class CameraPayloadHandler {
             }
 
             if (position == null) {
-                ViaBedrockUtilityFabric.LOGGER.warn("[BECamera] Camera set instruction has no position (preset {} may not define position)", p.getPresetRuntimeId());
-                return;
-            }
+                if (p.isDefault()) {
+                    // Default preset without position (e.g., first_person/third_person) → clear camera override
+                    CameraManager.INSTANCE.clear();
+                    ViaBedrockUtilityFabric.LOGGER.debug("[BECamera] Camera set to default preset {} (no position), clearing override", p.getPresetRuntimeId());
+                } else {
+                    ViaBedrockUtilityFabric.LOGGER.warn("[BECamera] Camera set instruction has no position (preset {} may not define position)", p.getPresetRuntimeId());
+                }
+            } else {
+                EaseOptions easeOptions = null;
+                if (p.isHasEase()) {
+                    easeOptions = new EaseOptions(
+                            Easings.byBedrockOrdinal(p.getEasingType()),
+                            (long) (p.getEaseDuration() * 1000)
+                    );
+                }
 
-            EaseOptions easeOptions = null;
-            if (p.isHasEase()) {
-                easeOptions = new EaseOptions(
-                        Easings.byBedrockOrdinal(p.getEasingType()),
-                        (long) (p.getEaseDuration() * 1000)
-                );
-            }
+                CameraData data = new CameraData(position, facing, rotation, easeOptions);
+                CameraManager.INSTANCE.setCamera(data);
 
-            CameraData data = new CameraData(position, facing, rotation, easeOptions);
-            CameraManager.INSTANCE.setCamera(data);
-            ViaBedrockUtilityFabric.LOGGER.debug("[BECamera] Camera set: pos={} rot={} facing={} ease={}", position, rotation, facing, p.isHasEase());
+                // Update playerEffects state from resolved preset
+                boolean effectsEnabled = resolvedPreset != null
+                        && resolvedPreset.getPlayerEffects() != null
+                        && resolvedPreset.getPlayerEffects();
+                CameraManager.INSTANCE.setPlayerEffects(effectsEnabled);
+
+                ViaBedrockUtilityFabric.LOGGER.debug("[BECamera] Camera set: pos={} rot={} facing={} ease={} playerEffects={}", position, rotation, facing, p.isHasEase(), effectsEnabled);
+            }
         }
 
         if (p.isHasClear()) {
@@ -120,7 +130,8 @@ public class CameraPayloadHandler {
                     entry.getParent().isEmpty() ? null : entry.getParent(),
                     entry.getPosX(), entry.getPosY(), entry.getPosZ(),
                     entry.getRotX(), entry.getRotY(),
-                    null // playerEffects not sent
+                    entry.getPlayerEffects(),
+                    entry.getAudioListener()
             ));
         }
         CameraPresetManager.INSTANCE.setPresets(presets);

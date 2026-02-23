@@ -27,7 +27,9 @@ public final class CameraPresetsPayload extends CameraPayload {
             Float posZ = readOptionalFloat(buf);
             Float rotX = readOptionalFloat(buf);
             Float rotY = readOptionalFloat(buf);
-            presets.add(new PresetEntry(name, parent, posX, posY, posZ, rotX, rotY));
+            Byte audioListener = readOptionalByte(buf);
+            Boolean playerEffects = readOptionalBoolean(buf);
+            presets.add(new PresetEntry(name, parent, posX, posY, posZ, rotX, rotY, audioListener, playerEffects));
         }
         return new CameraPresetsPayload(presets);
     }
@@ -36,14 +38,24 @@ public final class CameraPresetsPayload extends CameraPayload {
         return buf.readBoolean() ? buf.readFloat() : null;
     }
 
+    private static Byte readOptionalByte(PacketByteBuf buf) {
+        return buf.readBoolean() ? buf.readByte() : null;
+    }
+
+    private static Boolean readOptionalBoolean(PacketByteBuf buf) {
+        return buf.readBoolean() ? buf.readBoolean() : null;
+    }
+
     @Getter
     public static class PresetEntry {
         private final String name;
         private final String parent;
         private final Float posX, posY, posZ;
         private final Float rotX, rotY;
+        private final Byte audioListener;
+        private final Boolean playerEffects;
 
-        public PresetEntry(String name, String parent, Float posX, Float posY, Float posZ, Float rotX, Float rotY) {
+        public PresetEntry(String name, String parent, Float posX, Float posY, Float posZ, Float rotX, Float rotY, Byte audioListener, Boolean playerEffects) {
             this.name = name;
             this.parent = parent;
             this.posX = posX;
@@ -51,6 +63,8 @@ public final class CameraPresetsPayload extends CameraPayload {
             this.posZ = posZ;
             this.rotX = rotX;
             this.rotY = rotY;
+            this.audioListener = audioListener;
+            this.playerEffects = playerEffects;
         }
     }
 }
