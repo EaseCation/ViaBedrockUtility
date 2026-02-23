@@ -13,6 +13,8 @@ import org.oryxel.viabedrockutility.material.VanillaMaterials;
 import net.easecation.bedrockmotion.pack.PackManager;
 import org.oryxel.viabedrockutility.payload.BasePayload;
 import org.oryxel.viabedrockutility.payload.handler.CustomEntityPayloadHandler;
+import org.oryxel.viabedrockutility.payload.impl.camera.CameraPayload;
+import org.oryxel.viabedrockutility.payload.impl.camera.CameraPayloadHandler;
 
 @Getter
 @Setter
@@ -25,6 +27,7 @@ public class ViaBedrockUtility {
     private ViaBedrockUtility() {}
 
     private CustomEntityPayloadHandler payloadHandler;
+    private CameraPayloadHandler cameraPayloadHandler;
     private PackManager packManager;
     private boolean viaBedrockPresent;
 
@@ -37,6 +40,11 @@ public class ViaBedrockUtility {
         PayloadTypeRegistry.configurationS2C().register(BasePayload.ID, BasePayload.STREAM_CODEC);
         PayloadTypeRegistry.playS2C().register(BasePayload.ID, BasePayload.STREAM_CODEC);
         ClientPlayNetworking.registerGlobalReceiver(BasePayload.ID, (payload, context) -> payload.handle(this.payloadHandler));
+
+        // Register BECamera payload channel.
+        this.cameraPayloadHandler = new CameraPayloadHandler();
+        PayloadTypeRegistry.playS2C().register(CameraPayload.ID, CameraPayload.STREAM_CODEC);
+        ClientPlayNetworking.registerGlobalReceiver(CameraPayload.ID, (payload, context) -> payload.handle(this.cameraPayloadHandler));
 
         // Tick animation overlays on all cached player renderers
         ClientTickEvents.END_CLIENT_TICK.register(client -> {

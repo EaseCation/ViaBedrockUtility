@@ -1,5 +1,6 @@
 package org.oryxel.viabedrockutility.mixin.impl;
 
+import nakern.be_camera.camera.CameraManager;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.Screen;
 import org.oryxel.viabedrockutility.ViaBedrockUtility;
@@ -21,5 +22,8 @@ public class MinecraftClientMixin {
         ViaBedrockUtility.getInstance().getPayloadHandler().getCachedCustomEntities().clear();
         ViaBedrockUtility.getInstance().getPayloadHandler().getCachedPlayerCapes().clear();
         ViaBedrockUtility.getInstance().getPayloadHandler().getCachedSkinInfo().clear();
+
+        // Reset BECamera state
+        CameraManager.INSTANCE.resetAll();
     }
 }
