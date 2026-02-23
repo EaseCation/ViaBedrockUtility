@@ -16,7 +16,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: EaseCation/BedrockMotion
-          ref: '1.0.0'
           path: BedrockMotion
       - name: checkout BECamera
         uses: actions/checkout@v4
