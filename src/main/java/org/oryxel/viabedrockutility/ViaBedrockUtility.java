@@ -41,8 +41,9 @@ public class ViaBedrockUtility {
         PayloadTypeRegistry.playS2C().register(BasePayload.ID, BasePayload.STREAM_CODEC);
         ClientPlayNetworking.registerGlobalReceiver(BasePayload.ID, (payload, context) -> payload.handle(this.payloadHandler));
 
-        // Register BECamera payload channel.
+        // Register BECamera payload channel (CONFIGURATION for CONFIRM, PLAY for data).
         this.cameraPayloadHandler = new CameraPayloadHandler();
+        PayloadTypeRegistry.configurationS2C().register(CameraPayload.ID, CameraPayload.STREAM_CODEC);
         PayloadTypeRegistry.playS2C().register(CameraPayload.ID, CameraPayload.STREAM_CODEC);
         ClientPlayNetworking.registerGlobalReceiver(CameraPayload.ID, (payload, context) -> payload.handle(this.cameraPayloadHandler));
 

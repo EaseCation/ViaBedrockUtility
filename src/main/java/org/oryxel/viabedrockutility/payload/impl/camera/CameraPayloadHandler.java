@@ -77,7 +77,8 @@ public class CameraPayloadHandler {
                         && resolvedPreset.getPlayerEffects();
                 CameraManager.INSTANCE.setPlayerEffects(effectsEnabled);
 
-                ViaBedrockUtilityFabric.LOGGER.debug("[BECamera] Camera set: pos={} rot={} facing={} ease={} playerEffects={}", position, rotation, facing, p.isHasEase(), effectsEnabled);
+                ViaBedrockUtilityFabric.LOGGER.info("[BECamera] Camera set: pos={} rot=(pitch={}, yaw={}) facing={} ease={} playerEffects={}",
+                        position, rotation != null ? rotation.x : "null", rotation != null ? rotation.y : "null", facing, p.isHasEase(), effectsEnabled);
             }
         }
 
