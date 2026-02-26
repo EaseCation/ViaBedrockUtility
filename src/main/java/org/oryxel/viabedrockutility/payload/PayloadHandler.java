@@ -89,21 +89,11 @@ public class PayloadHandler {
     public void handle(final ModelRequestPayload payload) {}
 
     public void handle(final SpawnParticlePayload payload) {
-        ViaBedrockUtilityFabric.LOGGER.info("[Particle:L4] Handling SpawnParticlePayload: {} at ({}, {}, {})", payload.getIdentifier(), payload.getX(), payload.getY(), payload.getZ());
+        ViaBedrockUtilityFabric.LOGGER.info("[Particle:L4] Handling SpawnParticlePayload: {} at ({}, {}, {}), molang={}", payload.getIdentifier(), payload.getX(), payload.getY(), payload.getZ(), payload.getMolangVarsJson());
         Map<String, Float> molangVars = null;
         final String json = payload.getMolangVarsJson();
         if (json != null && !json.isEmpty()) {
-            try {
-                final com.google.gson.JsonObject obj = com.google.gson.JsonParser.parseString(json).getAsJsonObject();
-                molangVars = new java.util.HashMap<>();
-                for (var entry : obj.entrySet()) {
-                    if (entry.getValue().isJsonPrimitive()) {
-                        molangVars.put(entry.getKey(), entry.getValue().getAsFloat());
-                    }
-                }
-            } catch (Exception e) {
-                ViaBedrockUtilityFabric.LOGGER.debug("[Particle] Failed to parse molang vars JSON: {}", json);
-            }
+            molangVars = parseMolangVarsJson(json);
         }
         final var emitter = net.easecation.beparticle.ParticleManager.INSTANCE.spawnEmitter(
                 payload.getIdentifier(),
@@ -111,6 +101,46 @@ public class PayloadHandler {
                 molangVars
         );
         ViaBedrockUtilityFabric.LOGGER.info("[Particle:L4] spawnEmitter result: {} (definitions loaded: {})", emitter != null ? "SUCCESS" : "NULL (definition not found)", net.easecation.beparticle.ParticleManager.INSTANCE.getDefinitionCount());
+    }
+
+    /**
+     * Parse Bedrock molang variables JSON.
+     * Format: [{"name":"variable.color_r","value":{"type":"float","value":1.0}}, ...]
+     * Returns a map with variable names stripped of "variable." prefix (e.g. "color_r" -> 1.0f).
+     */
+    private Map<String, Float> parseMolangVarsJson(String json) {
+        try {
+            final com.google.gson.JsonElement element = com.google.gson.JsonParser.parseString(json);
+            final Map<String, Float> vars = new java.util.HashMap<>();
+            if (element.isJsonArray()) {
+                // Bedrock format: [{"name":"variable.xxx","value":{"type":"float","value":1.0}}, ...]
+                for (final com.google.gson.JsonElement item : element.getAsJsonArray()) {
+                    final com.google.gson.JsonObject obj = item.getAsJsonObject();
+                    String name = obj.get("name").getAsString();
+                    // Strip "variable." prefix for MoLang scope binding
+                    if (name.startsWith("variable.")) {
+                        name = name.substring("variable.".length());
+                    }
+                    final com.google.gson.JsonObject valueObj = obj.getAsJsonObject("value");
+                    final String type = valueObj.get("type").getAsString();
+                    if ("float".equals(type)) {
+                        vars.put(name, valueObj.get("value").getAsFloat());
+                    }
+                    // member_array type is nested, skip for now
+                }
+            } else if (element.isJsonObject()) {
+                // Simple format fallback: {"varName": floatValue, ...}
+                for (var entry : element.getAsJsonObject().entrySet()) {
+                    if (entry.getValue().isJsonPrimitive()) {
+                        vars.put(entry.getKey(), entry.getValue().getAsFloat());
+                    }
+                }
+            }
+            return vars.isEmpty() ? null : vars;
+        } catch (Exception e) {
+            ViaBedrockUtilityFabric.LOGGER.warn("[Particle] Failed to parse molang vars JSON: {}", json, e);
+            return null;
+        }
     }
 
     public void handle(final CapeDataPayload payload) {
