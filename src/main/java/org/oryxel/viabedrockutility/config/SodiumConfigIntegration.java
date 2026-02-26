@@ -114,6 +114,62 @@ public class SodiumConfigIntegration implements ConfigEntryPoint {
                                                 () -> config.getTier3().frameInterval)
                                         .setDefaultValue(1)
                                         .setStorageHandler(config::save))
+
+                                // Render Cull Distance
+                                .addOption(builder.createIntegerOption(
+                                                Identifier.of("viabedrockutility", "render_cull_distance"))
+                                        .setName(Text.translatable("config.viabedrockutility.option.render_cull_distance"))
+                                        .setTooltip(Text.translatable("config.viabedrockutility.option.render_cull_distance.tooltip"))
+                                        .setEnabledProvider(state -> state.readEnumOption(PRESET_ID, LodConfig.Preset.class) == LodConfig.Preset.CUSTOM, PRESET_ID)
+                                        .setRange(0, 128, 1)
+                                        .setValueFormatter(val -> val == 0
+                                                ? Text.translatable("config.viabedrockutility.value.disabled")
+                                                : Text.translatable("config.viabedrockutility.value.blocks", val))
+                                        .setBinding(val -> config.setRenderCullDistance(val),
+                                                () -> (int) config.getRenderCullDistance())
+                                        .setDefaultValue(80)
+                                        .setStorageHandler(config::save))
+                        )
+                        // Particle LOD option group
+                        .addOptionGroup(builder.createOptionGroup()
+                                .setName(Text.translatable("config.viabedrockutility.category.particle_lod"))
+
+                                // Particle Tick LOD Enabled
+                                .addOption(builder.createBooleanOption(
+                                                Identifier.of("viabedrockutility", "particle_tick_lod_enabled"))
+                                        .setName(Text.translatable("config.viabedrockutility.option.particle_tick_lod"))
+                                        .setTooltip(Text.translatable("config.viabedrockutility.option.particle_tick_lod.tooltip"))
+                                        .setEnabledProvider(state -> state.readEnumOption(PRESET_ID, LodConfig.Preset.class) == LodConfig.Preset.CUSTOM, PRESET_ID)
+                                        .setBinding(val -> { config.setParticleTickLodEnabled(val); config.syncParticleSettings(); },
+                                                config::isParticleTickLodEnabled)
+                                        .setDefaultValue(true)
+                                        .setStorageHandler(config::save))
+
+                                // Particle LOD Near Distance
+                                .addOption(builder.createIntegerOption(
+                                                Identifier.of("viabedrockutility", "particle_lod_near"))
+                                        .setName(Text.translatable("config.viabedrockutility.option.particle_lod_near"))
+                                        .setTooltip(Text.translatable("config.viabedrockutility.option.particle_lod_near.tooltip"))
+                                        .setEnabledProvider(state -> state.readEnumOption(PRESET_ID, LodConfig.Preset.class) == LodConfig.Preset.CUSTOM, PRESET_ID)
+                                        .setRange(8, 64, 1)
+                                        .setValueFormatter(val -> Text.translatable("config.viabedrockutility.value.blocks", val))
+                                        .setBinding(val -> { config.setParticleTickLodNearDistance(val); config.syncParticleSettings(); },
+                                                config::getParticleTickLodNearDistance)
+                                        .setDefaultValue(24)
+                                        .setStorageHandler(config::save))
+
+                                // Particle LOD Far Distance
+                                .addOption(builder.createIntegerOption(
+                                                Identifier.of("viabedrockutility", "particle_lod_far"))
+                                        .setName(Text.translatable("config.viabedrockutility.option.particle_lod_far"))
+                                        .setTooltip(Text.translatable("config.viabedrockutility.option.particle_lod_far.tooltip"))
+                                        .setEnabledProvider(state -> state.readEnumOption(PRESET_ID, LodConfig.Preset.class) == LodConfig.Preset.CUSTOM, PRESET_ID)
+                                        .setRange(16, 128, 1)
+                                        .setValueFormatter(val -> Text.translatable("config.viabedrockutility.value.blocks", val))
+                                        .setBinding(val -> { config.setParticleTickLodFarDistance(val); config.syncParticleSettings(); },
+                                                config::getParticleTickLodFarDistance)
+                                        .setDefaultValue(48)
+                                        .setStorageHandler(config::save))
                         )
                 );
     }

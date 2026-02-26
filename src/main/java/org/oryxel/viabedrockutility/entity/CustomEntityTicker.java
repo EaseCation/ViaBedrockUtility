@@ -281,7 +281,26 @@ public class CustomEntityTicker implements AnimationEventListener {
 
             var visibleBounds = this.packManager.getModelDefinitions().getVisibleBoundsMap()
                     .getOrDefault(model.geometryValue(), net.easecation.bedrockmotion.pack.definitions.VisibleBounds.DEFAULT);
-            this.renderer.getModels().add(new CustomEntityRenderer.Model(model.key(), model.geometryValue(), cModel, texture, evalMaterial(executionScope, model.controller()), model.controller(), visibleBounds));
+            // Pre-parse part visibility expressions to avoid per-frame re-parsing
+            Map<String, Object> parsedPV = null;
+            if (model.controller() != null && !model.controller().partVisibility().isEmpty()) {
+                parsedPV = new HashMap<>();
+                for (Map.Entry<String, String> pvEntry : model.controller().partVisibility().entrySet()) {
+                    if ("true".equals(pvEntry.getValue())) {
+                        parsedPV.put(pvEntry.getKey(), Boolean.TRUE);
+                    } else if ("false".equals(pvEntry.getValue())) {
+                        parsedPV.put(pvEntry.getKey(), Boolean.FALSE);
+                    } else {
+                        try {
+                            parsedPV.put(pvEntry.getKey(), MoLangEngine.parse(pvEntry.getValue()));
+                        } catch (IOException e) {
+                            ViaBedrockUtilityFabric.LOGGER.warn("[Entity] Failed to parse part visibility expression: {}", pvEntry.getValue(), e);
+                            parsedPV.put(pvEntry.getKey(), Boolean.TRUE);
+                        }
+                    }
+                }
+            }
+            this.renderer.getModels().add(new CustomEntityRenderer.Model(model.key(), model.geometryValue(), cModel, texture, evalMaterial(executionScope, model.controller()), model.controller(), visibleBounds, parsedPV));
             this.availableModels.add(model.key());
         }
         this.renderer.getModels().removeIf(model -> !this.availableModels.contains(model.key()));

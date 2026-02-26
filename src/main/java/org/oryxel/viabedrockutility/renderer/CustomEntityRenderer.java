@@ -87,6 +87,11 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
     //? if >=1.21.9 {
     @Override
     public void render(CustomEntityRenderState state, MatrixStack matrices, OrderedRenderCommandQueue queue, CameraRenderState cameraState) {
+        // Distance-based render culling: completely skip rendering for very distant entities
+        if (LodConfig.getInstance().shouldSkipRender(state.getDistanceFromCamera())) {
+            return;
+        }
+
         this.renderFrameCounter++;
 
         // Distance-based LOD: skip animation computation for distant entities (configurable)
@@ -137,8 +142,8 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
                 }
 
                 // Apply part_visibility
-                if (model.controller() != null && !model.controller().partVisibility().isEmpty()) {
-                    applyPartVisibility(model.model(), model.controller().partVisibility(), frameScope);
+                if (model.parsedPartVisibility() != null && !model.parsedPartVisibility().isEmpty()) {
+                    applyPartVisibility(model.model(), model.parsedPartVisibility(), frameScope);
                 }
             }
 
@@ -171,6 +176,10 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
     //?} else {
     /*@Override
     public void render(CustomEntityRenderState state, MatrixStack matrices, VertexConsumerProvider vertexConsumers, int light) {
+        if (LodConfig.getInstance().shouldSkipRender(state.getDistanceFromCamera())) {
+            return;
+        }
+
         this.renderFrameCounter++;
 
         boolean shouldAnimate = LodConfig.getInstance().shouldAnimate(state.getDistanceFromCamera(), this.renderFrameCounter);
@@ -216,8 +225,8 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
                     ci.animate(boneModel);
                 }
 
-                if (model.controller() != null && !model.controller().partVisibility().isEmpty()) {
-                    applyPartVisibility(model.model(), model.controller().partVisibility(), frameScope);
+                if (model.parsedPartVisibility() != null && !model.parsedPartVisibility().isEmpty()) {
+                    applyPartVisibility(model.model(), model.parsedPartVisibility(), frameScope);
                 }
             }
 
@@ -482,8 +491,13 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
         return new CustomEntityRenderState();
     }
 
+    /**
+     * @param parsedPartVisibility Pre-parsed part visibility map. Values are Boolean (for "true"/"false" literals)
+     *                             or {@code List<Expression>} (for MoLang expressions). Null if no visibility rules.
+     */
     public record Model(String key, String geometry, CustomEntityModel<CustomEntityRenderState> model, Identifier texture, Material material, BedrockRenderController controller,
-                        net.easecation.bedrockmotion.pack.definitions.VisibleBounds visibleBounds) {
+                        net.easecation.bedrockmotion.pack.definitions.VisibleBounds visibleBounds,
+                        Map<String, Object> parsedPartVisibility) {
     }
 
     @Getter
@@ -512,14 +526,18 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
         @Setter private double distanceFromCamera;
     }
 
-    private void applyPartVisibility(CustomEntityModel<?> entityModel, Map<String, String> pv, Scope scope) {
+    /**
+     * @param parsedPV Pre-parsed part visibility map. Values are Boolean or {@code List<Expression>}.
+     */
+    @SuppressWarnings("unchecked")
+    private void applyPartVisibility(CustomEntityModel<?> entityModel, Map<String, Object> parsedPV, Scope scope) {
         final List<ModelPart> allParts = entityModel.getParts();
 
         // Determine default visibility from wildcard rule
         boolean defaultVisible = true;
-        final String defaultRule = pv.get("*");
+        final Object defaultRule = parsedPV.get("*");
         if (defaultRule != null) {
-            defaultVisible = evalVisibility(defaultRule, scope);
+            defaultVisible = evalParsedVisibility(defaultRule, scope);
         }
 
         // Set default visibility for all parts
@@ -528,16 +546,14 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
         }
 
         // Override specific bones using name index — O(pv.size()) instead of O(pv.size() × allParts.size())
-        // In VBU's model hierarchy, each bone produces both a bone ModelPart and
-        // a cube wrapper ModelPart sharing the same name; both must be updated.
         boolean anyHidden = !defaultVisible;
 
         final Map<String, List<ModelPart>> partsByName = entityModel.getPartsByName();
-        for (Map.Entry<String, String> entry : pv.entrySet()) {
+        for (Map.Entry<String, Object> entry : parsedPV.entrySet()) {
             if ("*".equals(entry.getKey())) continue;
             List<ModelPart> matchingParts = partsByName.get(entry.getKey());
             if (matchingParts != null) {
-                boolean vis = evalVisibility(entry.getValue(), scope);
+                boolean vis = evalParsedVisibility(entry.getValue(), scope);
                 if (!vis) anyHidden = true;
                 for (ModelPart part : matchingParts) {
                     part.visible = vis;
@@ -546,9 +562,6 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
         }
 
         // Post-pass: only needed when some parts are hidden.
-        // Java MC's ModelPart.visible is hierarchical — if a parent is invisible,
-        // all children are hidden too. This bottom-up pass ensures ancestors of
-        // visible parts remain visible.
         if (anyHidden) {
             ensureAncestorsVisible(entityModel.getRootPart());
         }
@@ -600,11 +613,15 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
         }
     }
 
-    private boolean evalVisibility(String expression, Scope scope) {
-        if ("false".equals(expression)) return false;
-        if ("true".equals(expression)) return true;
+    /**
+     * Evaluates a pre-parsed visibility value. Boolean for literal "true"/"false",
+     * or {@code List<Expression>} for MoLang expressions (avoids per-frame re-parsing).
+     */
+    @SuppressWarnings("unchecked")
+    private boolean evalParsedVisibility(Object parsedValue, Scope scope) {
+        if (parsedValue instanceof Boolean b) return b;
         try {
-            return MoLangEngine.eval(scope, expression).getAsBoolean();
+            return MoLangEngine.eval(scope, (List<Expression>) parsedValue).getAsBoolean();
         } catch (Throwable e) {
             return true;
         }
