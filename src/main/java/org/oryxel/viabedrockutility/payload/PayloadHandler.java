@@ -33,6 +33,7 @@ import org.oryxel.viabedrockutility.payload.impl.skin.CapeDataPayload;
 import org.oryxel.viabedrockutility.payload.impl.skin.SkinAnimationDataPayload;
 import org.oryxel.viabedrockutility.payload.impl.skin.SkinAnimationInfoPayload;
 import org.oryxel.viabedrockutility.payload.impl.skin.SkinDataPayload;
+import org.oryxel.viabedrockutility.payload.impl.particle.SpawnParticlePayload;
 import org.oryxel.viabedrockutility.animation.PlayerAnimationManager;
 import org.oryxel.viabedrockutility.mixin.interfaces.IBedrockAnimatedModel;
 import net.easecation.bedrockmotion.pack.definitions.AnimationDefinitions;
@@ -80,10 +81,37 @@ public class PayloadHandler {
             this.handle(animInfo);
         } else if (payload instanceof SkinAnimationDataPayload animData) {
             this.handle(animData);
+        } else if (payload instanceof SpawnParticlePayload particlePayload) {
+            this.handle(particlePayload);
         }
     }
 
     public void handle(final ModelRequestPayload payload) {}
+
+    public void handle(final SpawnParticlePayload payload) {
+        ViaBedrockUtilityFabric.LOGGER.info("[Particle:L4] Handling SpawnParticlePayload: {} at ({}, {}, {})", payload.getIdentifier(), payload.getX(), payload.getY(), payload.getZ());
+        Map<String, Float> molangVars = null;
+        final String json = payload.getMolangVarsJson();
+        if (json != null && !json.isEmpty()) {
+            try {
+                final com.google.gson.JsonObject obj = com.google.gson.JsonParser.parseString(json).getAsJsonObject();
+                molangVars = new java.util.HashMap<>();
+                for (var entry : obj.entrySet()) {
+                    if (entry.getValue().isJsonPrimitive()) {
+                        molangVars.put(entry.getKey(), entry.getValue().getAsFloat());
+                    }
+                }
+            } catch (Exception e) {
+                ViaBedrockUtilityFabric.LOGGER.debug("[Particle] Failed to parse molang vars JSON: {}", json);
+            }
+        }
+        final var emitter = net.easecation.beparticle.ParticleManager.INSTANCE.spawnEmitter(
+                payload.getIdentifier(),
+                new org.joml.Vector3f(payload.getX(), payload.getY(), payload.getZ()),
+                molangVars
+        );
+        ViaBedrockUtilityFabric.LOGGER.info("[Particle:L4] spawnEmitter result: {} (definitions loaded: {})", emitter != null ? "SUCCESS" : "NULL (definition not found)", net.easecation.beparticle.ParticleManager.INSTANCE.getDefinitionCount());
+    }
 
     public void handle(final CapeDataPayload payload) {
         final NativeImage capeImage = ImageUtil.toNativeImage(payload.getCapeData(), payload.getWidth(), payload.getHeight());

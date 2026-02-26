@@ -11,6 +11,7 @@ import org.oryxel.viabedrockutility.enums.bedrock.ActorFlags;
 import org.oryxel.viabedrockutility.fabric.ViaBedrockUtilityFabric;
 import org.oryxel.viabedrockutility.payload.enums.PayloadType;
 import org.oryxel.viabedrockutility.payload.impl.entity.*;
+import org.oryxel.viabedrockutility.payload.impl.particle.*;
 import org.oryxel.viabedrockutility.payload.impl.skin.*;
 import org.oryxel.viabedrockutility.util.EnumUtil;
 
@@ -84,6 +85,16 @@ public class BasePayload implements CustomPayload {
             }
             case SKIN_ANIMATION_DATA -> {
                 return SkinAnimationDataPayload.STREAM_DECODER.decode(buf);
+            }
+
+            case SPAWN_PARTICLE -> {
+                final String identifier = readString(buf);
+                final float x = buf.readFloat();
+                final float y = buf.readFloat();
+                final float z = buf.readFloat();
+                final String molangVarsJson = buf.readBoolean() ? readString(buf) : "";
+                ViaBedrockUtilityFabric.LOGGER.info("[Particle:L3] Decoded SPAWN_PARTICLE payload: {} at ({}, {}, {})", identifier, x, y, z);
+                return new SpawnParticlePayload(identifier, x, y, z, molangVarsJson);
             }
 
             default -> throw new IllegalStateException("Unexpected value: " + PayloadType.values()[type]);

@@ -43,7 +43,61 @@ public class ServerResourcePackLoaderMixin {
         });
 
         ViaBedrockUtilityFabric.LOGGER.info("[ResourcePack] Loaded {} bedrock pack(s) total, initializing PackManager", contents.size());
-        TextureProcessor.process(contents);
+
+        // Load vanilla.mcpack textures as base layer (e.g. textures/particle/particles.png)
+        // Without this, particle textures from vanilla.mcpack won't be in TextureManager,
+        // causing a crash when BillboardParticleSubmittable tries to bind them during render pass.
+        // Note: BedrockMotion's vanilla.mcpack has no textures; VBU's copy (in assets/) does.
+        final List<Content> textureContents = new ArrayList<>();
+        try (java.io.InputStream is = ViaBedrockUtilityFabric.class.getResourceAsStream("/assets/viabedrockutility/vanilla_packs/vanilla.mcpack")) {
+            if (is != null) {
+                textureContents.add(new Content(is.readAllBytes()));
+                ViaBedrockUtilityFabric.LOGGER.info("[ResourcePack] Loaded vanilla.mcpack textures as base layer");
+            } else {
+                ViaBedrockUtilityFabric.LOGGER.warn("[ResourcePack] vanilla.mcpack not found in assets");
+            }
+        } catch (IOException e) {
+            ViaBedrockUtilityFabric.LOGGER.warn("[ResourcePack] Failed to load vanilla.mcpack for textures", e);
+        }
+        textureContents.addAll(contents);
+        TextureProcessor.process(textureContents);
+
         ViaBedrockUtility.getInstance().setPackManager(new PackManager(contents));
+
+        // Load particle definitions into BEParticle
+        loadParticleDefinitions(contents);
+    }
+
+    private void loadParticleDefinitions(List<Content> contents) {
+        // Count particle files first to avoid clearing definitions when no packs are present (e.g. on disconnect)
+        int count = 0;
+        java.util.List<java.util.Map.Entry<String, String>> pendingDefinitions = new java.util.ArrayList<>();
+        for (final Content content : contents) {
+            for (final String path : content.getFilesDeep("particles/", ".json")) {
+                try {
+                    final String json = content.getString(path);
+                    final com.google.gson.JsonObject root = com.google.gson.JsonParser.parseString(json).getAsJsonObject();
+                    final com.google.gson.JsonObject effect = root.getAsJsonObject("particle_effect");
+                    if (effect == null) continue;
+                    final com.google.gson.JsonObject desc = effect.getAsJsonObject("description");
+                    if (desc == null) continue;
+                    final String identifier = desc.get("identifier").getAsString();
+                    pendingDefinitions.add(java.util.Map.entry(identifier, json));
+                } catch (Exception e) {
+                    ViaBedrockUtilityFabric.LOGGER.warn("[Particle] Failed to load particle definition: {}", path, e);
+                }
+            }
+        }
+        if (pendingDefinitions.isEmpty()) {
+            ViaBedrockUtilityFabric.LOGGER.info("[Particle] No particle definitions found, keeping existing definitions");
+            return;
+        }
+        net.easecation.beparticle.ParticleManager.INSTANCE.clear();
+        for (final var entry : pendingDefinitions) {
+            net.easecation.beparticle.ParticleManager.INSTANCE.loadDefinition(entry.getKey(), entry.getValue());
+            ViaBedrockUtilityFabric.LOGGER.info("[Particle:L0] Loaded particle definition: {}", entry.getKey());
+            count++;
+        }
+        ViaBedrockUtilityFabric.LOGGER.info("[Particle] Loaded {} particle definition(s)", count);
     }
 }

@@ -294,6 +294,8 @@ public class CustomEntityRenderer<T extends Entity> extends EntityRenderer<T, Cu
     public void updateRenderState(T entity, CustomEntityRenderState state, float tickDelta) {
         super.updateRenderState(entity, state, tickDelta);
         state.setCustomRenderer(this);
+        // Update entity position for particle spawning
+        this.ticker.setEntityPosition(new org.joml.Vector3f((float) entity.getX(), (float) entity.getY(), (float) entity.getZ()));
         float serverYaw = entity.getYaw(tickDelta);
         float serverPitch = entity.getPitch(tickDelta);
         // Initialize on first frame

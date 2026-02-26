@@ -54,6 +54,9 @@ public class CustomEntityTicker implements AnimationEventListener {
     private final Map<String, String> inverseTextureMap = new HashMap<>();
     private final Map<String, String> inverseMaterialMap = new HashMap<>();
 
+    // particle_effects alias map from entity definition (short_name → full identifier)
+    private final Map<String, String> particleEffects;
+
     private final Set<String> availableModels = new HashSet<>();
     private final List<RenderControllerEvaluator.EvaluatedModel> models = new ArrayList<>();
 
@@ -65,6 +68,10 @@ public class CustomEntityTicker implements AnimationEventListener {
 
     @Setter @Getter
     private Float scale;
+
+    // Updated by renderer each frame with entity world position
+    @Setter @Getter
+    private org.joml.Vector3f entityPosition = null;
 
     @Getter
     private Scope lastExecutionScope;
@@ -99,6 +106,10 @@ public class CustomEntityTicker implements AnimationEventListener {
         this.renderer = new CustomEntityRenderer<>(this, new CopyOnWriteArrayList<>(), context);
 
         this.entityDefinition = entityDefinition;
+
+        // Load particle_effects alias map from entity definition
+        final Map<String, String> pe = entityDefinition.entityData().getParticleEffects();
+        this.particleEffects = pe != null ? pe : Map.of();
 
         final MutableObjectBinding variableBinding = new MutableObjectBinding();
         // Bedrock engine provides gliding_speed_value based on entity movement attribute.
@@ -172,6 +183,23 @@ public class CustomEntityTicker implements AnimationEventListener {
     @Override
     public Scope getEntityScope() {
         return this.entityScope;
+    }
+
+    @Override
+    public void onParticleEvent(String effectShortName, String locator) {
+        final String identifier = this.particleEffects.get(effectShortName);
+        if (identifier == null) {
+            ViaBedrockUtilityFabric.LOGGER.debug("[Particle] Unknown particle effect alias: {}", effectShortName);
+            return;
+        }
+        // Skip if position not yet initialized (renderer hasn't run)
+        if (entityPosition == null) return;
+        // TODO: resolve locator to bone world position; for now use entity position
+        net.easecation.beparticle.ParticleManager.INSTANCE.spawnEmitter(
+                identifier,
+                new org.joml.Vector3f(entityPosition),
+                null
+        );
     }
 
     // --- End AnimationEventListener ---

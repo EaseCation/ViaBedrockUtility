@@ -25,5 +25,8 @@ public class MinecraftClientMixin {
 
         // Reset BECamera state
         CameraManager.INSTANCE.resetAll();
+
+        // Clear BEParticle emitters (keep definitions for reconnect)
+        net.easecation.beparticle.ParticleManager.INSTANCE.clearEmitters();
     }
 }
